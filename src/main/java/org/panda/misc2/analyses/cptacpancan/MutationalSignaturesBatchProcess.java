@@ -1,6 +1,7 @@
 package org.panda.misc2.analyses.cptacpancan;
 
 import com.github.jsonldjava.utils.JsonUtils;
+import org.panda.causalpath.network.GraphWriter;
 import org.panda.causalpath.run.JasonizeResultGraphsRecursively;
 import org.panda.misc2.causalpath.CausalPathSubnetwork;
 import org.panda.utility.ArrayUtil;
@@ -8,19 +9,24 @@ import org.panda.utility.FileUtil;
 import org.panda.utility.StreamDirection;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class MutationalSignaturesBatchProcess
 {
 	public static void main(String[] args) throws IOException
 	{
-//		addSubgraphs("/home/ozgunbabur/Analyses/CPTAC-PanCan/mutational-signatures", readGOI());
-//		addSubgraphs("/home/ozgunbabur/Analyses/CPTAC-PanCan/mutational-signatures-with-kl-input", readGOI());
-		jsonizeSubgraphs();
-
 //		processRecursive(
 //			"/home/ozgunbabur/Data/CPTAC-PanCan/mutational-signatures",
 //			"/home/ozgunbabur/Analyses/CPTAC-PanCan/mutational-signatures");
+
+		addSubgraphs("/home/ozgunbabur/Analyses/CPTAC-PanCan/mutational-signatures", readGOI());
+//		addSubgraphs("/home/ozgunbabur/Analyses/CPTAC-PanCan/mutational-signatures-with-kl-input", readGOI());
+		jsonizeSubgraphs();
+
+//		generateASpecificNeighborhoodGraph();
+//		transposeMutexMatrix();
 	}
 
 	private static void processRecursive(String inRoot, String outRoot) throws IOException
@@ -84,7 +90,7 @@ public class MutationalSignaturesBatchProcess
 	private static Map<String, Set<String>> readGOI() throws IOException
 	{
 		Map map = (Map) JsonUtils.fromInputStream(new FileInputStream(
-			"/home/ozgunbabur/Data/CPTAC-PanCan/mutational-signatures/full_geneset.json"));
+			"/home/ozgunbabur/Data/CPTAC-PanCan/full_geneset_v3.json"));
 
 		Map<String, Set<String>> result = new HashMap<>();
 
@@ -114,7 +120,27 @@ public class MutationalSignaturesBatchProcess
 		Set<String> subs = new HashSet<>(readGOI().keySet());
 		subs.add("causative");
 		String inBase = "/home/ozgunbabur/Analyses/CPTAC-PanCan";
-//		JasonizeResultGraphsRecursively.generate(inBase, inBase + "/mutational-signatures", subs, inBase + "/graphs", "causative.json");
-		JasonizeResultGraphsRecursively.generate(inBase, inBase + "/mutational-signatures-with-kl-input", subs, inBase + "/graphs", "causative.json");
+		JasonizeResultGraphsRecursively.generate(inBase, inBase + "/mutational-signatures", subs, inBase + "/graphs", "causative.json");
+//		JasonizeResultGraphsRecursively.generate(inBase, inBase + "/mutational-signatures-with-kl-input", subs, inBase + "/graphs", "causative.json");
+	}
+
+	private static void generateASpecificNeighborhoodGraph() throws IOException
+	{
+		String gene = "PRKDC";
+		String dir = "/home/ozgunbabur/Analyses/CPTAC-PanCan/mutational-signatures/HRD/Dendrogroup3Bvs2A/Full_GeneSpace/diff_expr_res/difexp/Group3Bvs2A_Group3B/all";
+		String outSIFNoExt = gene + "-neighborhood";
+		CausalPathSubnetwork.writeGOINeighForCompBased(dir, Collections.singleton(gene), StreamDirection.BOTHSTREAM, outSIFNoExt);
+		String jsonDir = dir.replace("/mutational-signatures/", "/graphs/mutational-signatures/") + "/" + outSIFNoExt;
+		Files.createDirectories(Paths.get(jsonDir));
+		GraphWriter.convertSIFToJSON(dir + "/" + outSIFNoExt + ".sif", dir + "/" + outSIFNoExt + ".format", jsonDir + File.separator + "causative.json");
+	}
+
+	// Temporary code
+	private static void transposeMutexMatrix()
+	{
+		String inFile = "/home/ozgunbabur/Data/CPTAC-PanCan/mutex/mmrd_ddr_matrix_binary.tsv";
+		String outFile = "/home/ozgunbabur/Analyses/CPTAC-PanCan/mutex/DDR/data.txt";
+
+		FileUtil.transpose(inFile, "\t", outFile, "\t", null, null);
 	}
 }

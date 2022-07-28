@@ -195,7 +195,8 @@ public class CausalPathSubnetwork
 		Set<String> ids = getIDsAtTheNeighborhood(dir + "/results.txt", goi, d);
 		System.out.println("ids.size() = " + ids.size());
 //		writeSubsetFormat(dir + "/causative.format", dir + "/" + outSIFNoExt + ".format", goi, null);
-		writeSubsetFormat(dir + "/causative.format", dir + "/" + outSIFNoExt + ".format", null, ids);
+//		writeSubsetFormat(dir + "/causative.format", dir + "/" + outSIFNoExt + ".format", null, ids);
+		writeSubsetFormat(dir + "/causative.format", dir + "/" + outSIFNoExt + ".format", null, null);
 	}
 
 	public static void writeDownstreamSubgraph(String dir, Set<String> seeds, String outSIFNoExt) throws IOException

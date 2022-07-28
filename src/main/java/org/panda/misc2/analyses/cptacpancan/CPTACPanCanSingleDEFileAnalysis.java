@@ -53,12 +53,17 @@ public class CPTACPanCanSingleDEFileAnalysis
 //		Map<String, String> idToGene = readIDToGeneMapping();
 
 		String[] header = FileUtil.lines(inFile).findFirst().get().split("\t");
-		int idInd = ArrayUtil.indexOf(header, "index");
+		int idInd = ArrayUtil.indexOf(header, "causalpath_adjusted_id", "index");
 		int geneInd = ArrayUtil.indexOf(header, "gene_name");
 		int featInd = ArrayUtil.indexOf(header, "feature");
 		int pInd = ArrayUtil.indexOf(header, "adj.P.Val");
 		int fcInd = ArrayUtil.indexOf(header, "logFC");
 		int clusterInd = ArrayUtil.indexOf(header, "id");
+
+		if (idInd > 0)
+		{
+			System.out.println("inFile = " + inFile);
+		}
 
 		Map<String, Map<String, Double>> idToVals = new HashMap<>();
 		Map<String, String[]> idToProps = new HashMap<>();
@@ -214,10 +219,10 @@ public class CPTACPanCanSingleDEFileAnalysis
 			"effect-column = Effect\n" +
 			"\n" +
 			"value-transformation = signed-p-values\n" +
-			"threshold-for-data-significance = 0.1 protein\n" +
-			"threshold-for-data-significance = 0.1 phosphoprotein\n" +
-			"threshold-for-data-significance = 0.1 acetylprotein\n" +
-			"threshold-for-data-significance = 0.1 rna\n" +
+			"threshold-for-data-significance = 0.105 protein\n" +
+			"threshold-for-data-significance = 0.105 phosphoprotein\n" +
+			"threshold-for-data-significance = 0.105 acetylprotein\n" +
+			"threshold-for-data-significance = 0.105 rna\n" +
 			"\n" +
 			"color-saturation-value = 15\n" +
 			"\n" +
@@ -225,6 +230,8 @@ public class CPTACPanCanSingleDEFileAnalysis
 			"permutations-for-significance = 10000\n" +
 			"fdr-threshold-for-network-significance = 0.1\n" +
 			"use-network-significance-for-causal-reasoning = true\n" +
+			"\n" +
+			"show-all-genes-with-proteomic-data = true\n" +
 			"\n";
 	}
 
