@@ -178,7 +178,25 @@ public class CausalPathSubnetwork
 				}
 			}
 		}
+	}
 
+	public static void writeGOINeighForCompBasedRecursively(String dir, Map<String, Set<String>> goiMap, StreamDirection d) throws IOException
+	{
+		String sifFile = dir + "/causative.sif";
+		if (Files.exists(Paths.get(sifFile)))
+		{
+			writeGOINeighForCompBased(dir, goiMap, d);
+		}
+		else
+		{
+			for (File subdir : new File(dir).listFiles())
+			{
+				if (subdir.isDirectory())
+				{
+					writeGOINeighForCompBasedRecursively(subdir.getPath(), goiMap, d);
+				}
+			}
+		}
 	}
 
 	public static void writeGOINeighForCompBased(String dir, Set<String> goi, StreamDirection d) throws IOException
@@ -186,17 +204,27 @@ public class CausalPathSubnetwork
 		writeGOINeighForCompBased(dir, goi, d, "causative-goi-neigh");
 	}
 
+	public static void writeGOINeighForCompBased(String dir, Map<String, Set<String>> goiMap, StreamDirection d) throws IOException
+	{
+		for (String name : goiMap.keySet())
+		{
+			writeGOINeighForCompBased(dir, goiMap.get(name), d, name);
+		}
+	}
+
 	public static void writeGOINeighForCompBased(String dir, Set<String> goi, StreamDirection d, String outSIFNoExt) throws IOException
 	{
 		if (!Files.exists(Paths.get(dir + "/results.txt"))) return;
 
 		System.out.println("dir = " + dir);
-		SIFFileUtil.writeNeighborhood(dir + "/causative.sif", goi, dir + "/" + outSIFNoExt + ".sif", d);
-		Set<String> ids = getIDsAtTheNeighborhood(dir + "/results.txt", goi, d);
-		System.out.println("ids.size() = " + ids.size());
-//		writeSubsetFormat(dir + "/causative.format", dir + "/" + outSIFNoExt + ".format", goi, null);
-//		writeSubsetFormat(dir + "/causative.format", dir + "/" + outSIFNoExt + ".format", null, ids);
-		writeSubsetFormat(dir + "/causative.format", dir + "/" + outSIFNoExt + ".format", null, null);
+		if (SIFFileUtil.writeNeighborhood(dir + "/causative.sif", goi, dir + "/" + outSIFNoExt + ".sif", d))
+		{
+			Set<String> ids = getIDsAtTheNeighborhood(dir + "/results.txt", goi, d);
+			System.out.println("ids.size() = " + ids.size());
+//			writeSubsetFormat(dir + "/causative.format", dir + "/" + outSIFNoExt + ".format", goi, null);
+//			writeSubsetFormat(dir + "/causative.format", dir + "/" + outSIFNoExt + ".format", null, ids);
+			writeSubsetFormat(dir + "/causative.format", dir + "/" + outSIFNoExt + ".format", null, null);
+		}
 	}
 
 	public static void writeDownstreamSubgraph(String dir, Set<String> seeds, String outSIFNoExt) throws IOException
