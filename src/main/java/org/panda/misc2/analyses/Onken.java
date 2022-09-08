@@ -16,17 +16,17 @@ import java.io.IOException;
 import java.util.*;
 
 public class Onken {
-	//	public static final String DATA_DIR = "/home/ozgunbabur/Data/Onken/";
+//		public static final String DATA_DIR = "/home/ozgunbabur/Data/Onken/";
 	public static final String DATA_DIR = "/Users/ozgun/Data/Onken/";
-	//	public static final String OUT_DIR = "/home/ozgunbabur/Analyses/Onken/";
+//		public static final String OUT_DIR = "/home/ozgunbabur/Analyses/Onken/";
 	public static final String OUT_DIR = "/Users/ozgun/Analyses/Onken/";
 
 	public static final String[] CELL_LINES = new String[]{"MP41", "MP46", "OCM"};
 
 	public static void main(String[] args) throws IOException {
-//		convertData();
+		convertData();
 //		predictKinaseActivity();
-		generateSubgraphs();
+//		generateSubgraphs();
 	}
 
 	private static void generateSubgraphs() throws IOException
@@ -194,6 +194,8 @@ public class Onken {
 		goiMap.put("CSNK2A1", new HashSet<>(List.of("CSNK2A1")));
 		goiMap.put("PRKACA", new HashSet<>(List.of("PRKACA")));
 		goiMap.put("PRKA", new HashSet<>(Arrays.asList("PRKAB1", "PRKAG2")));
+		goiMap.put("RPS6K", new HashSet<>(Arrays.asList("RPS6KA1", "RPS6KA2", "RPS6KA3", "RPS6KA4", "RPS6KA5", "RPS6KA6", "RPS6KB1", "RPS6KB2")));
+		goiMap.put("CDK7-12-13", new HashSet<>(Arrays.asList("CDK7", "CDK12", "CDK13")));
 
 		goiMap.put("carbohydrate-metabolic-process", GO.get().getGenesOfTerm("GO:0005975"));
 		goiMap.put("regulation-of-carbohydrate-metabolic-process", GO.get().getGenesOfTerm("GO:0006109"));
