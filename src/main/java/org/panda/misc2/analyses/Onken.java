@@ -202,6 +202,11 @@ public class Onken {
 		goiMap.put("lipid-metabolic-process", GO.get().getGenesOfTerm("GO:0006629"));
 		goiMap.put("regulation-of-lipid-metabolic-process", GO.get().getGenesOfTerm("GO:0019216"));
 		goiMap.put("tricarboxylic-acid-cycle", GO.get().getGenesOfTerm("GO:0006099"));
+		goiMap.put("transcription by RNA polymerase II", GO.get().getGenesOfTerm("GO:0006366"));
+		goiMap.put("RNA splicing", GO.get().getGenesOfTerm("GO:0008380"));
+		goiMap.put("transcription elongation by RNA polymerase II promoter", GO.get().getGenesOfTerm("GO:0006368"));
+		goiMap.put("DNA repair", GO.get().getGenesOfTerm("GO:0006281"));
+		goiMap.put("mRNA polyadenylation", GO.get().getGenesOfTerm("GO:0006378"));
 
 		return goiMap;
 	}
