@@ -24,7 +24,8 @@ public class Onken {
 	public static final String[] CELL_LINES = new String[]{"MP41", "MP46", "OCM"};
 
 	public static void main(String[] args) throws IOException {
-		convertData();
+		getGOIMap();
+//		convertData();
 //		predictKinaseActivity();
 //		generateSubgraphs();
 	}
@@ -197,16 +198,16 @@ public class Onken {
 		goiMap.put("RPS6K", new HashSet<>(Arrays.asList("RPS6KA1", "RPS6KA2", "RPS6KA3", "RPS6KA4", "RPS6KA5", "RPS6KA6", "RPS6KB1", "RPS6KB2")));
 		goiMap.put("CDK7-12-13", new HashSet<>(Arrays.asList("CDK7", "CDK12", "CDK13")));
 
-		goiMap.put("carbohydrate-metabolic-process", GO.get().getGenesOfTerm("GO:0005975"));
-		goiMap.put("regulation-of-carbohydrate-metabolic-process", GO.get().getGenesOfTerm("GO:0006109"));
-		goiMap.put("lipid-metabolic-process", GO.get().getGenesOfTerm("GO:0006629"));
-		goiMap.put("regulation-of-lipid-metabolic-process", GO.get().getGenesOfTerm("GO:0019216"));
-		goiMap.put("tricarboxylic-acid-cycle", GO.get().getGenesOfTerm("GO:0006099"));
-		goiMap.put("transcription by RNA polymerase II", GO.get().getGenesOfTerm("GO:0006366"));
-		goiMap.put("RNA splicing", GO.get().getGenesOfTerm("GO:0008380"));
-		goiMap.put("transcription elongation by RNA polymerase II promoter", GO.get().getGenesOfTerm("GO:0006368"));
-		goiMap.put("DNA repair", GO.get().getGenesOfTerm("GO:0006281"));
-		goiMap.put("mRNA polyadenylation", GO.get().getGenesOfTerm("GO:0006378"));
+		String[] goTerms = new String[]{"GO:0005975", "GO:0006109", "GO:0006629", "GO:0019216", "GO:0006099", 
+			"GO:0006366", "GO:0008380", "GO:0006368", "GO:0006281", "GO:0006378", "GO:0006310", "GO:0006260"};
+
+		for (String termID : goTerms)
+		{
+			String name = GO.get().getNameOfTerm(termID).replaceAll(" ", "-");
+			goiMap.put(name, GO.get().getGenesOfTerm(termID));
+		}
+		
+		System.out.println("\nDNA replication\n" + GO.get().getNameOfTerm("GO:0006260"));
 
 		return goiMap;
 	}
