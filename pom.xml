@@ -83,6 +83,17 @@
 			<artifactId>jsonld-java</artifactId>
 			<version>0.7.0</version>
 		</dependency>
+		<dependency>
+			<groupId>gov.nist.math</groupId>
+			<artifactId>jama</artifactId>
+			<version>1.0.3</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.spark</groupId>
+			<artifactId>spark-mllib_2.13</artifactId>
+			<version>3.3.0</version>
+		</dependency>
+
 	</dependencies>
 
 
