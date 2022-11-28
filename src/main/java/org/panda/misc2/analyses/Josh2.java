@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 public class Josh2
 {
 	public static final String DATA_DIR = "/home/ozgunbabur/Data/Josh/";
-	public static final String ANALYSIS_DIR = "/home/ozgunbabur/Analyses/Josh/trajectories/";
+	public static final String ANALYSIS_DIR = "/home/ozgunbabur/Analyses/Josh/groups/";
 
 	public static void main(String[] args) throws IOException
 	{
@@ -27,8 +27,8 @@ public class Josh2
 //		convertMouseToHuman(DATA_DIR + "diffexp.tsv", ANALYSIS_DIR + "data.tsv");
 //		batchConvertToHuman();
 //		runRankBasedEnrichment();
-//		addRankBasedEnrichmentToCausalPathRecursive(ANALYSIS_DIR, 0.1);
-		temp();
+		addRankBasedEnrichmentToCausalPathRecursive(ANALYSIS_DIR, 0.1);
+//		temp();
 	}
 
 
@@ -237,13 +237,13 @@ public class Josh2
 			name = name.substring(0, name.lastIndexOf("."));
 			FileUtil.mkdirs(outBase + name);
 			convertMouseToHuman(file.getPath(), outBase + name + "/data.tsv");
-			FileUtil.copyFile(inBase + "../parameters.txt", outBase + name + "/parameters.txt") ;
+			FileUtil.copyFile(inBase + "../../parameters.txt", outBase + name + "/parameters.txt") ;
 		}
 	}
 
 	static void runRankBasedEnrichment() throws IOException
 	{
-		String base = "/home/ozgunbabur/Analyses/Josh/trajectories/";
+		String base = "/home/ozgunbabur/Analyses/Josh/groups/";
 
 		for (File dir : new File(base).listFiles())
 		{
