@@ -2,6 +2,7 @@ package org.panda.misc2.analyses;
 
 import org.panda.misc2.TFEnrichment;
 import org.panda.resource.MGI;
+import org.panda.utility.ArrayUtil;
 import org.panda.utility.CollectionUtil;
 import org.panda.utility.FileUtil;
 import org.panda.utility.statistics.Histogram;
@@ -15,8 +16,8 @@ import java.util.stream.Collectors;
 
 public class Josh2
 {
-	public static final String DATA_DIR = "/home/ozgunbabur/Data/Josh/";
-	public static final String ANALYSIS_DIR = "/home/ozgunbabur/Analyses/Josh/groups/";
+	public static final String DATA_DIR = "/home/ozgunbabur/Data/Josh/take3/DEGs/";
+	public static final String ANALYSIS_DIR = "/home/ozgunbabur/Analyses/Josh/take3-CP/";
 
 	public static void main(String[] args) throws IOException
 	{
@@ -24,9 +25,9 @@ public class Josh2
 //		printCellsInRange(-1, -5.1, -4.9, 4.9, 5.1);
 //		getClusterRepresentatives();
 //		logTransformMatrix();
-//		convertMouseToHuman(DATA_DIR + "diffexp.tsv", ANALYSIS_DIR + "data.tsv");
+//		batchConvertMouseToHuman(DATA_DIR, ANALYSIS_DIR);
 //		batchConvertToHuman();
-//		runRankBasedEnrichment();
+//		runRankBasedEnrichment(ANALYSIS_DIR);
 		addRankBasedEnrichmentToCausalPathRecursive(ANALYSIS_DIR, 0.1);
 //		temp();
 	}
@@ -165,8 +166,28 @@ public class Josh2
 		writer.close();
 	}
 
+	static void batchConvertMouseToHuman(String inDir, String outDir) throws IOException
+	{
+		for (File file : new File(inDir).listFiles())
+		{
+			if (file.getName().endsWith(".xls"))
+			{
+				String name = file.getName();
+				name = name.substring(0, name.lastIndexOf("."));
+
+				String outFile = outDir + name + "/data.tsv";
+				FileUtil.mkdirsOfFilePath(outFile);
+				convertMouseToHuman(file.getPath(), outFile);
+			}
+		}
+	}
+
 	static void convertMouseToHuman(String inFile, String outFile) throws IOException
 	{
+		String[] header = FileUtil.readHeader(inFile);
+		int pInd = ArrayUtil.indexOf(header, "p_val_adj");
+		int fcInd = ArrayUtil.indexOf(header, "avg_log2FC");
+
 		BufferedWriter writer = FileUtil.newBufferedWriter(outFile);
 		writer.write("ID\tSymbols\tSites\tFeature\tEffect\tSignedP");
 		Map<String, String> lineMap = new HashMap<>();
@@ -191,13 +212,16 @@ public class Josh2
 				else
 				{
 					memory.add(hGene);
-					if (Double.parseDouble(t[1]) == 0)
+					double p = Double.parseDouble(t[pInd]);
+					if (p == 0)
 					{
-						Double p = 1e-323;
-						if (t[1].startsWith("-")) p = -p;
-						t[1] = String.valueOf(p);
+						p = 1e-323;
 					}
-					String line = hGene + "-rna\t" + hGene + "\t\tR\t\t" + t[1];
+					if (t[fcInd].startsWith("-"))
+					{
+						p = -p;
+					}
+					String line = hGene + "-rna\t" + hGene + "\t\tR\t\t" + p;
 					lineMap.put(hGene, line);
 				}
 			}
@@ -241,10 +265,8 @@ public class Josh2
 		}
 	}
 
-	static void runRankBasedEnrichment() throws IOException
+	static void runRankBasedEnrichment(String base) throws IOException
 	{
-		String base = "/home/ozgunbabur/Analyses/Josh/groups/";
-
 		for (File dir : new File(base).listFiles())
 		{
 			System.out.println("dir = " + dir);

@@ -5,6 +5,7 @@ import org.panda.misc2.TFEnrichment;
 import org.panda.resource.HGNC;
 import org.panda.resource.MGI;
 import org.panda.resource.SiteMappingMouseToHuman;
+import org.panda.utility.ArrayUtil;
 import org.panda.utility.CollectionUtil;
 import org.panda.utility.FileUtil;
 import org.panda.utility.UniqueMaker;
@@ -132,10 +133,8 @@ public class Kai
 
 					sb.append("\n").append(id).append("\t").append(sym).append("\t")
 						.append(CollectionUtil.merge(siteList, "|")).append("\tP\t\t").append(p);
-				}
-				else cnt[NO_HUM_SYM]++;
-			}
-			else if (map.isEmpty()) cnt[ONE_TO_NONE]++;
+				} else cnt[NO_HUM_SYM]++;
+			} else if (map.isEmpty()) cnt[ONE_TO_NONE]++;
 			else cnt[ONE_TO_MANY]++;
 		});
 		System.out.println("cnt[ONE_TO_ONE] = " + cnt[ONE_TO_ONE]);
@@ -144,7 +143,8 @@ public class Kai
 		System.out.println("cnt[NO_HUM_SYM] = " + cnt[NO_HUM_SYM]);
 	}
 
-	public static void predictActivity() throws IOException {
+	public static void predictActivity() throws IOException
+	{
 		Map<String, Map<String, Map<String, Boolean>>> rawKSPriors = KinaseEnrichment.readPriors();
 		Map<String, Map<String, Boolean>> rawTFTPriors = TFEnrichment.readPriors();
 
@@ -170,5 +170,8 @@ public class Kai
 			}
 		}
 	}
+
+
+
 
 }

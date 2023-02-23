@@ -72,7 +72,7 @@ public class TFEnrichment
 		return mergeIdenticalSets(converted);
 	}
 
-	private static Map<String, Map<String, Boolean>> mergeIdenticalSets(Map<String, Map<String, Boolean>> prePriors)
+	public static Map<String, Map<String, Boolean>> mergeIdenticalSets(Map<String, Map<String, Boolean>> prePriors)
 	{
 		Map<Map<String, Boolean>, Set<String>> mapsToNames = new HashMap<>();
 		prePriors.forEach((name, maps) ->
