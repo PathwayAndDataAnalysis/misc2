@@ -7,6 +7,7 @@ import org.pathwaycommons.sif.io.Loader;
 import org.pathwaycommons.sif.model.CustomRelationType;
 import org.pathwaycommons.sif.model.SIFEdge;
 import org.pathwaycommons.sif.model.SIFGraph;
+import org.pathwaycommons.sif.query.Direction;
 import org.pathwaycommons.sif.query.QueryExecutor;
 import org.pathwaycommons.sif.util.EdgeAnnotationType;
 import org.pathwaycommons.sif.util.EdgeSelector;
@@ -33,8 +34,12 @@ public class PathFinder
         Loader cpLoader = new Loader(cpAnnotTypes);
         Loader ppiLoader = new Loader(ppiAnnotTypes);
 
-        // Load a graph
+        // Load graphs
         SIFGraph cpGraph = cpLoader.load(new FileInputStream("/home/ozgunbabur/Documents/causal-priors.txt"));
+        SIFGraph klGraph = cpLoader.load(new FileInputStream("/home/ozgunbabur/Data/KinaseLibrary/kinase-library.sif"));
+
+        klGraph.getAllEdges().forEach(cpGraph::add);
+
         SIFGraph ppiGraph = ppiLoader.load(new FileInputStream("/home/ozgunbabur/Documents/PathwayCommons12.All.hgnc.sif"));
 
         //--- Perform a query on the graph
@@ -49,6 +54,8 @@ public class PathFinder
             new CustomRelationType("inhibits-gtpase", true)
             );
 
+        EdgeSelector ksEdgeSelector = new RelationTypeSelector(PHOSPHORYLATES, DEPHOSPHORYLATES);
+
         EdgeSelector ppiEdgeSelector = new RelationTypeSelector(INTERACTS_WITH, IN_COMPLEX_WITH);
 
         String DIR = "/home/ozgunbabur/Analyses/Yo/cis-trans-paths/";
@@ -58,13 +65,14 @@ public class PathFinder
         for (int i = 0; i < study.length; i++)
         {
             processInputFile(DIR + "input/" + study[i] + "_tumor_phosphoQTL_gtex_eQTL_coloc_ALL_CIS_GENES.gene_labels.subsetted.tsv",
-                cpGraph, cpEdgeSelector, ppiGraph, ppiEdgeSelector,
+                cpGraph, cpEdgeSelector, ppiGraph, ppiEdgeSelector, ksEdgeSelector,
                 DIR + "networks/" + study[i] + "/", DIR + "output/" + study[i] + "_paths_added.tsv");
         }
     }
 
     private static void processInputFile(String inFile, SIFGraph cpGraph, EdgeSelector cpEdgeSelector,
-                                         SIFGraph ppiGraph, EdgeSelector ppiEdgeSelector, String outDir, String outFile)
+                                         SIFGraph ppiGraph, EdgeSelector ppiEdgeSelector, EdgeSelector ksEdgeSelector,
+                                         String outDir, String outFile)
     {
         FileUtil.mkdirs(outDir);
         BufferedWriter writer = FileUtil.newBufferedWriter(outFile);
@@ -74,7 +82,7 @@ public class PathFinder
         int transInd = ArrayUtil.indexOf(header, "trans_gene_symbol");
 
         FileUtil.write(header, "\t", writer);
-        FileUtil.write("\tCP Distance\tDirected Path\tPPI Distance\tPPI Path", writer);
+        FileUtil.write("\tOver a kinase path\tCP Distance\tDirected Path\tPPI Distance\tPPI Path", writer);
 
         int[] max = new int[]{0};
         FileUtil.linesTabbedSkip1(inFile).forEach(t ->
@@ -84,8 +92,24 @@ public class PathFinder
             String source = t[cisInd];
             String target = t[transInd];
 
-            Set<Object> result = Collections.emptySet();
+            Set<Object> kinases = QueryExecutor.searchNeighborhood(cpGraph, ksEdgeSelector, Collections.singleton(target), Direction.UPSTREAM, 1);
+            kinases.remove(target);
 
+            Set<Object> interactors = QueryExecutor.searchNeighborhood(ppiGraph, ppiEdgeSelector, Collections.singleton(source), Direction.UNDIRECTED, 1);
+            interactors.remove(source);
+
+            Set<Object> common = CollectionUtil.getIntersection(kinases, interactors);
+
+            if (!common.isEmpty())
+            {
+                FileUtil.tab_write("[" + source + "]-ppi-[" + CollectionUtil.merge(common, ",") + "]-pho-[" + target + "]", writer);
+            }
+            else
+            {
+                FileUtil.write("\t", writer);
+            }
+
+            Set<Object> result = Collections.emptySet();
             int limit;
             for (limit = 1; result.isEmpty() && limit <= 10; limit++)
             {

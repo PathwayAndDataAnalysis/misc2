@@ -17,19 +17,20 @@ public class KinaseEnrichment
 
 //		String dataFile = "/home/ozgunbabur/Analyses/CPTAC-PanCan/mutational-signatures/HRD_v2/HRDvsHRP/Full_GeneSpace/diff_expr_res/difexp/data.txt";
 //		String dataFile = "/home/ozgunbabur/Analyses/Aslan-IL6/data-noadj.tsv";
-		String dataFile = "/home/ozgunbabur/Data/Aslan/gpvi_mass_spec/C2S.tsv";
-//		String dataFile = "/home/ozgunbabur/Analyses/Aslan-Thrombin-PAR/data.csv";
-//		List<String> rankedList = readRankedIDsFromCPFile(dataFile);
-		List<String> rankedList = readRankedIDsFromGP6Sheet(dataFile);
+//		String dataFile = "/home/ozgunbabur/Data/Aslan/gpvi_mass_spec/C1S.tsv";
+		String column = "Resting-vs-Thrombin";
+		String dataFile = "/home/ozgunbabur/Analyses/Aslan-Thrombin-PAR/data.csv";
+		List<String> rankedList = readRankedIDsFromCPFile(dataFile, column);
+//		List<String> rankedList = readRankedIDsFromGP6Sheet(dataFile);
 
 		// for sanity check
 //		Collections.shuffle(rankedList);
 
-//		Map<String, Map<String, Set<String>>> geneToSiteToID = readDataMappingFromCPFile(dataFile);
-		Map<String, Map<String, Set<String>>> geneToSiteToID = readDataMappingFromGP6Sheet(dataFile);
+		Map<String, Map<String, Set<String>>> geneToSiteToID = readDataMappingFromCPFile(dataFile);
+//		Map<String, Map<String, Set<String>>> geneToSiteToID = readDataMappingFromGP6Sheet(dataFile);
 		Map<String, Set<Map<String, Boolean>>> priors = convertPriors(geneToSiteToID, rawPriors, rankedList);
 
-		RankedListSignedGroupedEnrichment.reportEnrichment(rankedList, priors, 1000000, dataFile.substring(0, dataFile.lastIndexOf(".")) + "-kinase-enrichment-v2.tsv");
+		RankedListSignedGroupedEnrichment.reportEnrichment(rankedList, priors, 1000000, dataFile.substring(0, dataFile.lastIndexOf("/")) + "/WithKinaseLibrary/" + column + "/kinase-enrichment-specific.tsv");
 
 		// Differential on GP6 stuff
 
@@ -112,11 +113,11 @@ public class KinaseEnrichment
 //		return gene + "-" + sites;
 //	}
 
-	public static List<String> readRankedIDsFromCPFile(String file)
+	public static List<String> readRankedIDsFromCPFile(String file, String nameOfSignedPColumn)
 	{
 		String[] header = FileUtil.readHeader(file);
 		int idInd = ArrayUtil.indexOf(header, "ID");
-		int pInd = ArrayUtil.indexOf(header, "SignedP", "HRDvsHRP_HRD", "Resting-vs-Thrombin");
+		int pInd = ArrayUtil.indexOf(header, nameOfSignedPColumn);
 		int featInd = ArrayUtil.indexOf(header, "Feature", "Modification");
 		Map<String, Double> idToP = FileUtil.linesTabbedSkip1(file).filter(t -> t[featInd].equals("P")).collect(Collectors.toMap(t -> t[idInd], t -> Double.parseDouble(t[pInd]), (d1, d2) -> d1));
 		List<String> ids = new ArrayList<>(idToP.keySet());
@@ -228,7 +229,8 @@ public class KinaseEnrichment
 	{
 		Map<String, Map<String, Map<String, Boolean>>> priors = new HashMap<>();
 
-		FileUtil.linesTabbed("/home/ozgunbabur/Data/causal-priors.txt")
+//		FileUtil.linesTabbed("/home/ozgunbabur/Data/causal-priors.txt")
+		FileUtil.linesTabbed("/home/ozgunbabur/Data/KinaseLibrary/kinase-library-90-20.sif")
 			.filter(t -> t.length > 4 && t[1].contains("phospho") && !t[4].isEmpty()).forEach(t ->
 		{
 			if (!priors.containsKey(t[0])) priors.put(t[0], new HashMap<>());

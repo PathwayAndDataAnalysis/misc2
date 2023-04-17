@@ -41,7 +41,7 @@ public class Onken {
 		Map<String, List<String>> rankedLists = new HashMap<>();
 
 		for (String cellLine : CELL_LINES) {
-			List<String> list = KinaseEnrichment.readRankedIDsFromCPFile(OUT_DIR + cellLine + "/data.tsv");
+			List<String> list = KinaseEnrichment.readRankedIDsFromCPFile(OUT_DIR + cellLine + "/data.tsv", "SignedP");
 			rankedLists.put(cellLine, list);
 		}
 

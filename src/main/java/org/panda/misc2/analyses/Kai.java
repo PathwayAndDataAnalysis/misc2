@@ -1,33 +1,30 @@
 package org.panda.misc2.analyses;
 
+import org.biopax.paxtools.model.level3.Gene;
 import org.panda.misc2.KinaseEnrichment;
 import org.panda.misc2.TFEnrichment;
-import org.panda.resource.HGNC;
-import org.panda.resource.MGI;
-import org.panda.resource.SiteMappingMouseToHuman;
-import org.panda.utility.ArrayUtil;
-import org.panda.utility.CollectionUtil;
-import org.panda.utility.FileUtil;
-import org.panda.utility.UniqueMaker;
-import org.panda.utility.statistics.RankedListSignedEnrichment;
-import org.panda.utility.statistics.RankedListSignedGroupedDifferentialEnrichment;
-import org.panda.utility.statistics.RankedListSignedGroupedEnrichment;
+import org.panda.resource.*;
+import org.panda.utility.*;
+import org.panda.utility.statistics.*;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Kai
 {
-	public static final String[] CASES = new String[]{"LFD-ins-vs-noins", "HFD-ins-vs-noins", "HFD-vs-LFD-ins", "HFD-vs-LFD-noins"};
-	public static final String DATA_DIR = "/home/ozgunbabur/Data/Kai/";
-	public static final String OUT_DIR = "/home/ozgunbabur/Analyses/Kai/";
+	public static final String[] CASES = new String[]{"KO-HFD-vs-WT-HFD", "KO-LFD-vs-WT-LFD", "WT-HFD-vs-WT-LFD"};
+	public static final String DATA_DIR = "/home/ozgunbabur/Data/Kai/v2/";
+	public static final String OUT_DIR = "/home/ozgunbabur/Analyses/Kai/v2/";
 
 	public static void main(String[] args) throws IOException
 	{
 //		convertAll();
-		predictActivity();
+//		predictActivity();
+
+		doGSEA(OUT_DIR + "KO-LFD-vs-WT-LFD/data.tsv", OUT_DIR + "KO-LFD-vs-WT-LFD/gsea.tsv");
 	}
 
 	static void convertAll() throws IOException
@@ -41,8 +38,10 @@ public class Kai
 	static void convertCase(String aCase) throws IOException
 	{
 		StringBuilder sb = new StringBuilder();
-		covertPhospho(DATA_DIR + aCase + "-phospho.csv", sb);
-		covertTotalProt(DATA_DIR + aCase + "-proteome.csv", sb);
+//		covertPhospho(DATA_DIR + aCase + "-phospho.csv", sb);
+//		covertTotalProt(DATA_DIR + aCase + "-proteome.csv", sb);
+
+		covertTotalProt(DATA_DIR + aCase + ".csv", sb);
 
 		String outFile = OUT_DIR + aCase + "/data.tsv";
 		FileUtil.mkdirsOfFilePath(outFile);
@@ -55,12 +54,12 @@ public class Kai
 	static void covertTotalProt(String file, StringBuilder sb)
 	{
 		int idInd = 0;
-		int ratInd = 1;
-		int pInd = 2;
+		int ratInd = 3;
+		int pInd = 4;
 
 		FileUtil.linesTabbedSkip1(file).forEach(t ->
 		{
-			if (t.length < 3 || t[pInd].isEmpty() || t[ratInd].isEmpty()) return;
+			if (t.length <= pInd || t[pInd].isEmpty() || t[ratInd].isEmpty()) return;
 
 			String up = t[idInd];
 
@@ -74,7 +73,7 @@ public class Kai
 				String sym = hSyms.iterator().next();
 
 				double p = Double.parseDouble(t[pInd]);
-				if (t[ratInd].startsWith("0.")) p = -p;
+				if (t[ratInd].startsWith("-")) p = -p;
 
 				sb.append("\n").append(sym).append("\t").append(sym).append("\t\tG\t\t").append(p);
 			}
@@ -152,7 +151,7 @@ public class Kai
 		{
 			System.out.println("dir = " + dir);
 			String dataFile = dir.getPath() + "/data.tsv";
-			List<String> list = KinaseEnrichment.readRankedIDsFromCPFile(dataFile);
+			List<String> list = KinaseEnrichment.readRankedIDsFromCPFile(dataFile, "SignedP");
 			Map<String, Map<String, Set<String>>> geneToSiteToID = KinaseEnrichment.readDataMappingFromCPFile(dataFile);
 			Map<String, Set<Map<String, Boolean>>> priors = KinaseEnrichment.convertPriors(geneToSiteToID, rawKSPriors, list);
 			if (!priors.isEmpty())
@@ -169,8 +168,28 @@ public class Kai
 					dir.getPath() + "/tf-enrichment.tsv");
 			}
 		}
+
 	}
 
+	public static void doGSEA(String inputCPFile, String outFile) throws IOException
+	{
+		String[] header = FileUtil.readHeader(inputCPFile);
+		int symInd = ArrayUtil.indexOf(header, "Symbols");
+		int pInd = ArrayUtil.indexOf(header, "SignedP");
+		Map<String, Double> pMap = FileUtil.linesTabbedSkip1(inputCPFile)
+			.collect(Collectors.toMap(t -> t[symInd], t -> Math.abs(Double.parseDouble(t[pInd])), Math::min));
+
+		List<String> select = FDR.select(pMap, null, 0.1);
+		Set<String> background = pMap.keySet();
+
+//		Map<String, Set<String>> reactomeWithID = ReactomePathway.get().getAllPathways();
+//		Map<String, Set<String>> reactomeWithName = reactomeWithID.keySet().stream().collect(Collectors.toMap(id -> ReactomePathway.get().getName(id), reactomeWithID::get, (strings, strings2) -> strings));
+//		EnrichmentAnalyzer.run(reactomeWithName, new HashSet<>(select), background, 3, 0.1, outFile);
+
+//		Map<String, Set<String>> reactome = MSigDB.get().getSetsNameFiltered(name -> name.startsWith("REACTOME"));
+		Map<String, Set<String>> reactome = MSigDB.get().getSetsNameFiltered(name -> true);
+		EnrichmentAnalyzer.run(reactome, new HashSet<>(select), background, 3, 0.1, outFile);
+	}
 
 
 

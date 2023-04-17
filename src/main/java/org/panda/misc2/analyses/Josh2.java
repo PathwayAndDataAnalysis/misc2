@@ -16,17 +16,14 @@ import java.util.stream.Collectors;
 
 public class Josh2
 {
-	public static final String DATA_DIR = "/home/ozgunbabur/Data/Josh/take3/DEGs/";
-	public static final String ANALYSIS_DIR = "/home/ozgunbabur/Analyses/Josh/take3-CP/";
+//	public static final String DATA_DIR = "/home/ozgunbabur/Data/Josh/take3/DEGs/";
+	public static final String DATA_DIR = "/home/ozgunbabur/Data/Josh/take3/Shailja-alternative/";
+//	public static final String ANALYSIS_DIR = "/home/ozgunbabur/Analyses/Josh/take3-CP-redo/";
+	public static final String ANALYSIS_DIR = "/home/ozgunbabur/Analyses/Josh/Shailja-alternative/";
 
 	public static void main(String[] args) throws IOException
 	{
-//		printLocDist(6);
-//		printCellsInRange(-1, -5.1, -4.9, 4.9, 5.1);
-//		getClusterRepresentatives();
-//		logTransformMatrix();
 //		batchConvertMouseToHuman(DATA_DIR, ANALYSIS_DIR);
-//		batchConvertToHuman();
 //		runRankBasedEnrichment(ANALYSIS_DIR);
 		addRankBasedEnrichmentToCausalPathRecursive(ANALYSIS_DIR, 0.1);
 //		temp();
@@ -170,7 +167,7 @@ public class Josh2
 	{
 		for (File file : new File(inDir).listFiles())
 		{
-			if (file.getName().endsWith(".xls"))
+			if (file.getName().endsWith(".csv"))
 			{
 				String name = file.getName();
 				name = name.substring(0, name.lastIndexOf("."));
@@ -185,7 +182,7 @@ public class Josh2
 	static void convertMouseToHuman(String inFile, String outFile) throws IOException
 	{
 		String[] header = FileUtil.readHeader(inFile);
-		int pInd = ArrayUtil.indexOf(header, "p_val_adj");
+		int pInd = ArrayUtil.indexOf(header, "p_val");
 		int fcInd = ArrayUtil.indexOf(header, "avg_log2FC");
 
 		BufferedWriter writer = FileUtil.newBufferedWriter(outFile);
@@ -233,21 +230,39 @@ public class Josh2
 
 	static void temp()
 	{
-		int[] max = new int[]{0};
-		FileUtil.linesTabbedSkip1("/home/ozgunbabur/Data/Josh/diffexp/luminal-vs-basal.tsv").filter(t -> t.length > 1).forEach(t ->
+		Set<String> targets = FileUtil.linesTabbed("/home/ozgunbabur/Documents/causal-priors.txt").filter(t -> t[0].equals("IRF1") &&
+			(t[1].equals("upregulates-expression") || t[1].equals("downregulates-expression"))).map(t -> t[2]).collect(Collectors.toSet());
+
+		System.out.println("targets = " + targets.size());
+
+		Set<String> oldSet = FileUtil.getTermsInTabDelimitedColumn("/home/ozgunbabur/Data/Josh/take3/DEGs/RS_LPvsLP.xls", 0, 1);
+		Set<String> newSet = FileUtil.getTermsInTabDelimitedColumn("/home/ozgunbabur/Data/Josh/take3/BPK2022vS4/RS_LPvLP.xls", 0, 1);
+
+//		Set<String> oldSet = FileUtil.getTermsInTabDelimitedColumn("/home/ozgunbabur/Analyses/Josh/take3-CP-redo/RS_LPvsLP/data.tsv", 1, 1);
+//		Set<String> newSet = FileUtil.getTermsInTabDelimitedColumn("/home/ozgunbabur/Analyses/Josh/BPK2022vS4/RS_LPvLP/data.tsv", 1, 1);
+//		oldSet.retainAll(targets);
+//		newSet.retainAll(targets);
+
+		CollectionUtil.printVennCounts(oldSet, newSet);
+
+		System.out.println(" ========== ");
+
+		Map<String, Boolean> map1 = FileUtil.linesTabbedSkip1("/home/ozgunbabur/Data/Josh/take3/DEGs/RS_LPvsLP.xls").filter(t ->      Double.parseDouble(t[5]) < 0.000000000000001).collect(Collectors.toMap(t -> t[0], t -> !t[2].startsWith("-")));
+		Map<String, Boolean> map2 = FileUtil.linesTabbedSkip1("/home/ozgunbabur/Data/Josh/take3/BPK2022vS4/RS_LPvLP.xls").filter(t -> Double.parseDouble(t[5]) < 0.000000000000001).collect(Collectors.toMap(t -> t[0], t -> !t[2].startsWith("-")));
+
+		int[] cnt = new int[]{0, 0};
+		map1.keySet().stream().filter(map2.keySet()::contains).forEach(g ->
 		{
-			if (t[1].substring(1).contains("-"))
+			if (map1.get(g).equals(map2.get(g))) cnt[0]++;
+			else
 			{
-				int x = Integer.parseInt(t[1].substring(t[1].lastIndexOf("-") + 1));
-				if (x > max[0]) max[0] = x;
+				cnt[1]++;
+//				System.out.println(g);
 			}
 		});
-		System.out.println("max[0] = " + max[0]);
 
-		String s = "1e-323";
-		double d = Double.parseDouble(s);
-		System.out.println("d = " + d);
-		System.out.println("String.valueOf(d) = " + String.valueOf(d));
+		System.out.println("cnt = " + Arrays.toString(cnt));
+
 	}
 
 	static void batchConvertToHuman() throws IOException
@@ -272,7 +287,7 @@ public class Josh2
 			System.out.println("dir = " + dir);
 			Map<String, Map<String, Boolean>> rawPriors = TFEnrichment.readPriors();
 			List<String> ranking = TFEnrichment.readRankedIDsFromCPFile(dir + "/data.tsv", "R");
-			Map<String, Map<String, Boolean>> priors = TFEnrichment.convertPriors(rawPriors, ranking, 5);
+			Map<String, Map<String, Boolean>> priors = TFEnrichment.convertPriors(rawPriors, ranking, 3);
 			RankedListSignedEnrichment.reportEnrichment(ranking, priors, 1000000, dir + "/tf-enrichment.tsv");
 		}
 	}
