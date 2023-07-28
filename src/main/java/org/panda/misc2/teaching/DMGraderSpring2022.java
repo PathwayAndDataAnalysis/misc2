@@ -19,10 +19,10 @@ public class DMGraderSpring2022
 {
 	public static void main(String[] args) throws IOException
 	{
-		String dir = "/home/ozgunbabur/Documents/Teaching/DiscreteMath/Spring2022/";
-		Map<String, Double> grades = getOverallGrades(dir + "CS_220_Spring_2022_grades.csv",
+		String dir = "/home/ozgunbabur/Documents/Teaching/DiscreteMath/Spring2023/";
+		Map<String, Double> grades = getOverallGrades(dir + "CS_220_Spring_2023_grades.csv",
 			dir + "blackboard.csv",
-			dir + "UMBCS220MATH320BaburSpring2022_assignment_report_2022-05-16_1109.csv");
+			dir + "UMBCS220MATH320BaburSpring2023_assignment_report_2023-05-22_1053.csv");
 
 		TermCounter tc = new TermCounter();
 		grades.keySet().stream()
@@ -58,7 +58,7 @@ public class DMGraderSpring2022
 			if (!mfGrades.containsKey(name))
 			{
 				System.err.println("Blackboard misses: " + name);
-				mfGrades.put(name, new double[]{0, 0});
+				continue;
 			}
 
 			double midterm = mfGrades.get(name)[0];
@@ -71,7 +71,7 @@ public class DMGraderSpring2022
 			gradesMap.put(name, overall);
 		}
 
-		shiftCurveBy(gradesMap, (100 - 93.29565217391304));// + (55 - 54.1040731629393));
+		shiftCurveBy(gradesMap, (100 - 85.84610146773748));// + (55 - 54.1040731629393));
 
 		return gradesMap;
 	}

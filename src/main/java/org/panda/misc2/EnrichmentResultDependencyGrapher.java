@@ -14,13 +14,13 @@ public class EnrichmentResultDependencyGrapher
 {
 	public static void main(String[] args) throws IOException
 	{
-//		String[] cases = new String[]{"male-vs-female", "old-female-vs-young-female", "old-male-vs-old-female", "old-male-vs-young-male", "old-vs-young", "young-male-vs-young-female"};
-//
+		String[] cases = new String[]{"male-vs-female", "old-female-vs-young-female", "old-male-vs-old-female", "old-male-vs-young-male", "old-vs-young", "young-male-vs-young-female"};
+
 //		for (String aCase : cases)
 //		{
 //			String dir = "/home/ozgunbabur/Analyses/Aslan-YoungAndOld/WithKinaseLib/" + aCase + "/";
 //			generateJaccardDistGraph(dir + "kinase-enrichment-specific.tsv", "Name", "Direction",
-//				"P-value", "FDR", "Members in top 25%", 0.1, 0.6,
+//				"P-value", "FDR", "Members in top 25%", 0.1, 0.5,
 //				dir + "dependency-graph-specific");
 //			generateJaccardDistGraph(dir + "kinase-enrichment.tsv", "Name", "Direction",
 //				"P-value", "FDR", "Members in top 25%", 0.1, 0.6,
@@ -28,9 +28,9 @@ public class EnrichmentResultDependencyGrapher
 //		}
 
 		String dir = "/home/ozgunbabur/Analyses/Aslan-Thrombin-PAR/WithKinaseLibrary/Resting-vs-Thrombin/";
-		generateJaccardDistGraph(dir + "kinase-enrichment-specific.tsv", "Name", "Direction",
-			"P-value", "FDR", "Members in top 25%", 0.1, 0.6,
-			dir + "dependency-graph-specific");
+		generateJaccardDistGraph(dir + "kinase-enrichment.tsv", "Name", "Direction",
+			"P-value", "FDR", "Members in top 25%", 0.1, 0.25,
+			dir + "dependency-graph");
 
 
 	}

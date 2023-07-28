@@ -13,21 +13,21 @@ import java.util.stream.Collectors;
 public class KisanseLibraryReader
 {
 	static final int PERCENT_THRESHOLD = 90;
-	static final int UPSTREAM_KINASE_THRESHOLD = 20;
+	static final int RANK_THRESHOLD = 15;
 	static final String DIR = "/home/ozgunbabur/Data/KinaseLibrary/";
 	static final String SUPP_PATH = DIR + "KL_scores.csv";
-	static final String SIF_PATH = DIR + "kinase-library-"+ PERCENT_THRESHOLD +"-" + UPSTREAM_KINASE_THRESHOLD + ".sif";
+	static final String SIF_PATH = DIR + "kinase-library-p"+ PERCENT_THRESHOLD +"-r" + RANK_THRESHOLD + ".sif";
 
 	public static void main(String[] args) throws IOException
 	{
-//		load(90);
-		convertToSIF(PERCENT_THRESHOLD, UPSTREAM_KINASE_THRESHOLD);
+//		load(PERCENT_THRESHOLD, RANK_THRESHOLD);
+		convertToSIF(PERCENT_THRESHOLD, RANK_THRESHOLD);
 //		compareCPAndKL();
 	}
 
-	private static Map<String, Map<String, List<String>>> load(double percentileThr, int upstrKinaseThr)
+	private static Map<String, Map<String, Map<String, double[]>>> load(double percentileThr, int rankThr)
 	{
-		Map<String, Map<String, List<String>>> map = new HashMap<>();
+		Map<String, Map<String, Map<String, double[]>>> map = new HashMap<>();
 
 		String[] header = FileUtil.readHeader(SUPP_PATH);
 		int geneInd = ArrayUtil.indexOf(header, "Gene");
@@ -35,8 +35,11 @@ public class KisanseLibraryReader
 		int kinStartInd = ArrayUtil.indexOf(header, "AAK1_percentile");
 
 		int[] kinCnt = new int[212];
+		Map<String, Integer> subsCnt = new HashMap<>();
 
-		FileUtil.linesTabbedSkip1(SUPP_PATH).filter(t -> !t[geneInd].isEmpty() && !t[geneInd].contains(";")).forEach(t ->
+		FileUtil.linesTabbedSkip1(SUPP_PATH)
+			.filter(t -> !t[geneInd].isEmpty() && !t[geneInd].contains(";"))
+			.forEach(t ->
 		{
 			String target = t[geneInd];
 			String site = t[siteInd];
@@ -50,27 +53,29 @@ public class KisanseLibraryReader
 				if (percentile >= percentileThr)
 				{
 					cnt++;
+
+					String kinase = header[i].substring(0, header[i].lastIndexOf("_"));
+					subsCnt.put(kinase, subsCnt.getOrDefault(kinase, 0) + 1);
 				}
 			}
 
 			kinCnt[cnt]++;
 
-			if (cnt <= upstrKinaseThr)
+//			if (cnt <= rankThr)
+			for (int i = kinStartInd; i < t.length; i += 2)
 			{
-				for (int i = kinStartInd; i < t.length; i += 2)
+				String kinase = header[i].substring(0, header[i].lastIndexOf("_"));
+				double percentile = Double.parseDouble(t[i]);
+				int rank = Integer.parseInt(t[i+1]);
+
+				if (percentile >= percentileThr && rank <= rankThr)
 				{
-					String kinase = header[i].substring(0, header[i].lastIndexOf("_"));
-					double percentile = Double.parseDouble(t[i]);
+					cnt++;
+					if (!map.containsKey(kinase)) map.put(kinase, new HashMap<>());
 
-					if (percentile >= percentileThr)
-					{
-						cnt++;
-						if (!map.containsKey(kinase)) map.put(kinase, new HashMap<>());
-
-						Map<String, List<String>> targetMap = map.get(kinase);
-						if (!targetMap.containsKey(target)) targetMap.put(target, new ArrayList<>());
-						if (!targetMap.get(target).contains(site)) targetMap.get(target).add(site);
-					}
+					Map<String, Map<String, double[]>> targetMap = map.get(kinase);
+					if (!targetMap.containsKey(target)) targetMap.put(target, new HashMap<>());
+					if (!targetMap.get(target).containsKey(site)) targetMap.get(target).put(site, new double[]{percentile, rank});
 				}
 			}
 		});
@@ -85,25 +90,52 @@ public class KisanseLibraryReader
 		for (int i = 0; i < cum.length; i++)
 		{
 //			System.out.println(i + "\t" + (cum[i] / total));
-			System.out.println(i + "\t" + kinCnt[i]);
+//			System.out.println(i + "\t" + kinCnt[i]);
 		}
+
+//		Histogram h = new Histogram(100);
+//		h.setBorderAtZero(true);
+//		subsCnt.forEach((s, integer) -> h.count(integer));
+//		h.print();
 
 		return map;
 	}
 
 	private static void convertToSIF(double percentileThr, int upstKinaseThr) throws IOException
 	{
-		Map<String, Map<String, List<String>>> map = load(percentileThr, upstKinaseThr);
+		Map<String, Map<String, Map<String, double[]>>> map = load(percentileThr, upstKinaseThr);
 		BufferedWriter writer = FileUtil.newBufferedWriter(SIF_PATH);
 
-		map.forEach((kinase, tMap) ->
+		List<String> kinases = map.keySet().stream().sorted().collect(Collectors.toList());
+
+		for (String kinase : kinases)
 		{
-			tMap.forEach((target, sites) ->
+			Map<String, Map<String, double[]>> tMap = map.get(kinase);
+
+			List<String> targets = tMap.keySet().stream().sorted().collect(Collectors.toList());
+
+			for (String target : targets)
 			{
+				Map<String, double[]> siteMap = tMap.get(target);
+
+				List<String> sites = new ArrayList<>(siteMap.keySet());
 				sites.sort(Comparator.comparingInt(s -> Integer.parseInt(s.substring(1))));
-				FileUtil.writeln(kinase + "\tphosphorylates\t" + target + "\t\t" + CollectionUtil.merge(sites, ";"), writer);
-			});
-		});
+
+				StringBuilder sb = new StringBuilder();
+				boolean start = true;
+				for (String site : sites)
+				{
+					double[] pr = siteMap.get(site);
+
+					if (start) start = false;
+					else sb.append("|");
+
+					sb.append(pr[0]).append(";").append((int) pr[1]);
+				}
+
+				FileUtil.writeln(kinase + "\tphosphorylates\t" + target + "\t\t" + CollectionUtil.merge(sites, ";") + "\t" + sb, writer);
+			};
+		};
 
 		writer.close();
 	}
@@ -114,5 +146,28 @@ public class KisanseLibraryReader
 		Set<String> cp = FileUtil.linesTabbed("/home/ozgunbabur/Documents/causal-priors.txt").filter(t -> t[1].equals("phosphorylates")).map(t -> t[0] + " " + t[2]).collect(Collectors.toSet());
 
 		CollectionUtil.printVennCounts(kl, cp);
+	}
+
+	public static Map[] getScoresFromSpecialSIF(String sifFile)
+	{
+		Map<String, Double> percentageMap = new HashMap<>();
+		Map<String, Integer> rankMap = new HashMap<>();
+
+		FileUtil.linesTabbed(sifFile).forEach(t ->
+		{
+			String keyPrefix = t[0] + " " + t[2] + " ";
+
+			String[] scores = t[5].split("\\|");
+			String[] sites = t[4].split(";");
+			for (int i = 0; i < sites.length; i++)
+			{
+				String key = keyPrefix + sites[i];
+				String[] s = scores[i].split(";");
+				percentageMap.put(key, Double.parseDouble(s[0]));
+				rankMap.put(key, Integer.parseInt(s[1]));
+			}
+		});
+	
+		return new Map[]{percentageMap, rankMap};
 	}
 }

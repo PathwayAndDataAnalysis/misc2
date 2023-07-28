@@ -19,8 +19,10 @@ public class KinaseEnrichment
 //		String dataFile = "/home/ozgunbabur/Analyses/Aslan-IL6/data-noadj.tsv";
 //		String dataFile = "/home/ozgunbabur/Data/Aslan/gpvi_mass_spec/C1S.tsv";
 		String column = "Resting-vs-Thrombin";
+//		String column = "SignedP";
 		String dataFile = "/home/ozgunbabur/Analyses/Aslan-Thrombin-PAR/data.csv";
 		List<String> rankedList = readRankedIDsFromCPFile(dataFile, column);
+
 //		List<String> rankedList = readRankedIDsFromGP6Sheet(dataFile);
 
 		// for sanity check
@@ -28,26 +30,28 @@ public class KinaseEnrichment
 
 		Map<String, Map<String, Set<String>>> geneToSiteToID = readDataMappingFromCPFile(dataFile);
 //		Map<String, Map<String, Set<String>>> geneToSiteToID = readDataMappingFromGP6Sheet(dataFile);
+//		rawPriors = filterPriorsToExisting(rawPriors, dataFile);
 		Map<String, Set<Map<String, Boolean>>> priors = convertPriors(geneToSiteToID, rawPriors, rankedList);
 
-		RankedListSignedGroupedEnrichment.reportEnrichment(rankedList, priors, 1000000, dataFile.substring(0, dataFile.lastIndexOf("/")) + "/WithKinaseLibrary/" + column + "/kinase-enrichment-specific.tsv");
+		RankedListSignedGroupedEnrichment.reportEnrichment(rankedList, priors, 1000000,
+			dataFile.substring(0, dataFile.lastIndexOf("/")) + "/WithKinaseLibrary/" + column + "/kinase-enrichment.tsv");
 
-		// Differential on GP6 stuff
 
-//		String dataFile1 = "/home/ozgunbabur/Data/Aslan/gpvi_mass_spec/C1S.tsv";
-//		String dataFile2 = "/home/ozgunbabur/Data/Aslan/gpvi_mass_spec/C2S.tsv";
-//		List<String> rankedList1 = readRankedIDsFromGP6Sheet(dataFile1);
-//		List<String> rankedList2 = readRankedIDsFromGP6Sheet(dataFile2);
-//		System.out.println("rankedList1.size() = " + rankedList1.size());
-//		System.out.println("rankedList2.size() = " + rankedList2.size());
-//		rankedList1.retainAll(rankedList2);
-//		rankedList2.retainAll(rankedList1);
-//		System.out.println("After union = " + rankedList2.size());
+//		String[] cases = new String[]{"male-vs-female", "old-female-vs-young-female", "old-male-vs-old-female", "old-male-vs-young-male", "old-vs-young", "young-male-vs-young-female"};
 //
-//		Map<String, Map<String, Set<String>>> geneToSiteToID = readDataMappingFromGP6Sheet(dataFile1);
-//		Map<String, Set<Map<String, Boolean>>> priors = convertPriors(geneToSiteToID, rawPriors, rankedList1);
-//		RankedListGroupedDifferentialEnrichment.reportEnrichment(rankedList1, rankedList2, priors, 1000000,
-//			dataFile1.substring(0, dataFile1.lastIndexOf(".")) + "-vs-" + dataFile2.substring(dataFile2.lastIndexOf("/") + 1, dataFile2.lastIndexOf(".")) + "-diff-kinase-enrichment.tsv");
+//		for (String aCase : cases)
+//		{
+//			String dataFile = "/home/ozgunbabur/Analyses/Aslan-YoungAndOld/WithKinaseLib/" + aCase + "/data.txt";
+//			System.out.println("dataFile = " + dataFile);
+//			List<String> rankedList = readRankedIDsFromCPFile(dataFile, "SignedP");
+//			Map<String, Map<String, Set<String>>> geneToSiteToID = readDataMappingFromCPFile(dataFile);
+//			Map<String, Set<Map<String, Boolean>>> priors = convertPriors(geneToSiteToID, rawPriors, rankedList);
+//
+//			RankedListSignedGroupedEnrichment.reportEnrichment(rankedList, priors, 1000000,
+//				dataFile.substring(0, dataFile.lastIndexOf("/")) + "/kinase-enrichment-specific.tsv");
+//
+//		}
+
 	}
 
 	public static Map<String, Map<String, Set<String>>> readDataMappingFromCPFile(String file)
@@ -77,7 +81,7 @@ public class KinaseEnrichment
 		return geneToSiteToID;
 	}
 
-	private static Map<String, Map<String, Set<String>>> readDataMappingFromGP6Sheet(String file)
+	public static Map<String, Map<String, Set<String>>> readDataMappingFromGP6Sheet(String file)
 	{
 		String[] header = FileUtil.readHeader(file, 11);
 		int idInd = ArrayUtil.indexOf(header, "New Sequence");
@@ -131,7 +135,7 @@ public class KinaseEnrichment
 		return ids;
 	}
 
-	private static List<String> readRankedIDsFromGP6Sheet(String file)
+	public static List<String> readRankedIDsFromGP6Sheet(String file)
 	{
 		String[] header = FileUtil.readHeader(file, 11);
 		int idInd = ArrayUtil.indexOf(header, "New Sequence");
@@ -201,7 +205,7 @@ public class KinaseEnrichment
 		Map<String, Set<Map<String, Boolean>>> compacted = new HashMap<>();
 		for (String kinase : converted.keySet())
 		{
-			if (converted.get(kinase).size() >= 4)
+			if (converted.get(kinase).size() >= 3)
 			{
 				compacted.put(kinase, new HashSet<>());
 				compacted.get(kinase).addAll(converted.get(kinase).values());
@@ -230,7 +234,7 @@ public class KinaseEnrichment
 		Map<String, Map<String, Map<String, Boolean>>> priors = new HashMap<>();
 
 //		FileUtil.linesTabbed("/home/ozgunbabur/Data/causal-priors.txt")
-		FileUtil.linesTabbed("/home/ozgunbabur/Data/KinaseLibrary/kinase-library-90-20.sif")
+		FileUtil.linesTabbed("/home/ozgunbabur/Data/KinaseLibrary/kinase-library-p90-r15.sif")
 			.filter(t -> t.length > 4 && t[1].contains("phospho") && !t[4].isEmpty()).forEach(t ->
 		{
 			if (!priors.containsKey(t[0])) priors.put(t[0], new HashMap<>());
@@ -246,5 +250,13 @@ public class KinaseEnrichment
 			}
 		});
 		return priors;
+	}
+
+	public static Map<String, Map<String, Map<String, Boolean>>> filterPriorsToExisting(Map<String, Map<String, Map<String, Boolean>>> rawPriors, String cpDataFile)
+	{
+		Set<String> existing = FileUtil.getTermsInTabDelimitedColumn(cpDataFile, 1, 1);
+		Set<String> remove = rawPriors.keySet().stream().filter(k -> !existing.contains(k)).collect(Collectors.toSet());
+		remove.forEach(rawPriors::remove);
+		return rawPriors;
 	}
 }
