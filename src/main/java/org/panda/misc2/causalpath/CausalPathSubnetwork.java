@@ -27,24 +27,9 @@ public class CausalPathSubnetwork
 {
 	public static void main(String[] args) throws IOException
 	{
-//		generateNeighborhoodSubgraphsForSignificantsRecursively("/home/ozgun/Analyses/Jaffe", 0.1);
-//		if (true) System.exit(0);
-
-//		String dir = "/home/ozgun/Analyses/Aslan-platelet/with-feedback-more-hyp-added/";
-//		String dir = "/home/ozgun/Analyses/Hisham/Proteome/primed-vs-naive-phospho/";
-//		String dir = "/home/ozgun/Analyses/Hisham/Proteome/mouse-primed-vs-naive-expression-rnaseq/";
-
-//		generateSubsetWithPPI(dir + "causative.sif", Arrays.asList("IKBKB", "BIN2"), loadPPIGraph());
-
-//		SIFFileUtil.writeNeighborhood(dir + "causative.sif", getSignificantGenes(
-//			dir + "significance-pvals.txt", 0.1), dir + "causative-neighborhood-of-enriched-fdr0.1.sif");
-
-//		SIFFileUtil.writeIntersection("/home/ozgun/Analyses/Hisham/Proteome/primed-vs-naive-expression-rnaseq/causative.sif",
-//			"/home/ozgun/Analyses/Hisham/Proteome/primed-vs-naive-expression/causative.sif",
-//			"/home/ozgun/Analyses/Hisham/Proteome/primed-vs-naive-expression-rnaseq/intersection.sif");
-
-//		writeSignifNeighForCorrBased("/Users/ozgun/Documents/Analyses/CPTAC-LUAD/correlation-tumor", StreamDirection.DOWNSTREAM);
-//		writeSignifNeighForCompBased("/Users/ozgun/Documents/Analyses/SUNIL-EXP12/netsig_Molm_Par_vs_AllEarly", StreamDirection.DOWNSTREAM, 0.1);
+		Set<String> goi = new HashSet<>(Arrays.asList("MAPK1", "MAPK3"));
+		String dir = "/home/ozgunbabur/Analyses/Aslan-Thrombin-PAR/Regular-CP/strict-sitematch/Resting-vs-Thrombin";
+		writeGOINeighForCompBased(dir, goi, StreamDirection.BOTHSTREAM, "MAPK1-3-neigh");
 	}
 
 	public static UndirectedGraph loadPPIGraph()

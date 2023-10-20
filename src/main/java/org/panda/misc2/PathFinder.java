@@ -85,7 +85,8 @@ public class PathFinder
 
         EdgeSelector ppiEdgeSelector = new RelationTypeSelector(INTERACTS_WITH, IN_COMPLEX_WITH);
 
-        String DIR = "/home/ozgunbabur/Analyses/Yo/cis-trans-paths-round-4/input/";
+        String inputDirName = "/rand-input/";
+        String DIR = "/home/ozgunbabur/Analyses/Yo/cis-trans-paths-round-4" + inputDirName;
 
         FileUtil.processDirsRecursive(new File(DIR), dir ->
         {
@@ -94,14 +95,14 @@ public class PathFinder
                 String filename = file.getPath();
                 if (filename.endsWith(".tsv"))
                 {
-                    String networkDir = filename.replaceFirst("/input/", "/networks/");
+                    String networkDir = filename.replaceFirst(inputDirName, "/networks/");
                     networkDir = networkDir.substring(0, networkDir.lastIndexOf("/") + 1);
                     String anaName = filename.substring(filename.lastIndexOf(File.separator) + 1, filename.lastIndexOf("."));
                     anaName = anaName.replaceAll("causalpath_input\\.", "");
                     networkDir += anaName + File.separator;
 
 
-                    String outFile = filename.replaceFirst("/input/", "/output/");
+                    String outFile = filename.replaceFirst(inputDirName, "/output/");
 //                    processInputFile(filename,
 //                        cpGraph, cpEdgeSelector, ppiGraph, ppiEdgeSelector, ksEdgeSelector, acetylEdgeSelector, tfEdgeSelector
 //                        networkDir, outFile);
