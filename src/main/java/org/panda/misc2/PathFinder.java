@@ -1,5 +1,8 @@
 package org.panda.misc2;
 
+import org.jetbrains.annotations.NotNull;
+import org.panda.resource.siteeffect.Feature;
+import org.panda.resource.siteeffect.SiteEffectCollective;
 import org.panda.utility.ArrayUtil;
 import org.panda.utility.CollectionUtil;
 import org.panda.utility.FileUtil;
@@ -45,19 +48,19 @@ public class PathFinder
         // Load graphs
         String cpFile = "/home/ozgunbabur/Documents/causal-priors.txt";
         SIFGraph cpGraph = cpLoader.load(new FileInputStream(cpFile));
-        String klFile = "/home/ozgunbabur/Data/KinaseLibrary/kinase-library-p90-r15.sif";
-        SIFGraph klGraph = cpLoader.load(new FileInputStream(klFile));
+//        String klFile = "/home/ozgunbabur/Data/KinaseLibrary/kinase-library-p90-r5.sif";
+//        SIFGraph klGraph = cpLoader.load(new FileInputStream(klFile));
 
-        SiteSpecificGraph klSSGraph = new SiteSpecificGraph("Kinase Library", "phosphorylates");
-        klSSGraph.load(klFile, Collections.singleton("phosphorylates"));
+//        SiteSpecificGraph klSSGraph = new SiteSpecificGraph("Kinase Library", "phosphorylates");
+//        klSSGraph.load(klFile, Collections.singleton("phosphorylates"));
 
-        klGraph.getAllEdges().forEach(cpGraph::add);
+//        klGraph.getAllEdges().forEach(cpGraph::add);
 
         SiteSpecificGraph phosphorylatesSSGraph = new SiteSpecificGraph("Phospho", "phosphorylates");
-        phosphorylatesSSGraph.load(klFile, Collections.singleton("phosphorylates"));
+//        phosphorylatesSSGraph.load(klFile, Collections.singleton("phosphorylates"));
         phosphorylatesSSGraph.load(cpFile, Collections.singleton("phosphorylates"));
         SiteSpecificGraph dephosphorylatesSSGraph = new SiteSpecificGraph("Dephospho", "dephosphorylates");
-        phosphorylatesSSGraph.load(cpFile, Collections.singleton("phosphorylates"));
+        dephosphorylatesSSGraph.load(cpFile, Collections.singleton("dephosphorylates"));
         SiteSpecificGraph acetylatesSSGraph = new SiteSpecificGraph("Acetyl", "acetylates");
         acetylatesSSGraph.load(cpFile, Collections.singleton("acetylates"));
         SiteSpecificGraph deacetylatesSSGraph = new SiteSpecificGraph("Deacetyl", "deacetylates");
@@ -85,8 +88,10 @@ public class PathFinder
 
         EdgeSelector ppiEdgeSelector = new RelationTypeSelector(INTERACTS_WITH, IN_COMPLEX_WITH);
 
-        String inputDirName = "/rand-input/";
-        String DIR = "/home/ozgunbabur/Analyses/Yo/cis-trans-paths-round-4" + inputDirName;
+        String inputDirName = "/input/";
+        String DIR = "/home/ozgunbabur/Analyses/Yo/cis-trans-paths-round-8" + inputDirName;
+
+        Map<String, Map<CausalRelationType, Map<String, Set<String>>>> priorsInMaps = loadCPPriors(cpFile, null);//klFile);
 
         FileUtil.processDirsRecursive(new File(DIR), dir ->
         {
@@ -107,161 +112,21 @@ public class PathFinder
 //                        cpGraph, cpEdgeSelector, ppiGraph, ppiEdgeSelector, ksEdgeSelector, acetylEdgeSelector, tfEdgeSelector
 //                        networkDir, outFile);
                     processInputFileTFOnly(filename, cpGraph, tfEdgeSelector, ksEdgeSelector, acetylEdgeSelector, cpEdgeSelector, ppiGraph, ppiEdgeSelector, phosphorylatesSSGraph, dephosphorylatesSSGraph, acetylatesSSGraph, deacetylatesSSGraph, networkDir, outFile);
+
+                    if (hasCisSlope(filename))
+                    {
+                        findCausalPaths(filename, outFile.substring(0, outFile.lastIndexOf(".")) + "_CausalPath.tsv", networkDir.substring(0, networkDir.length()-1) + "_CausalPath" + File.separator, priorsInMaps, deduceAnalysisType(filename));
+                    }
                 }
             }
         });
     }
 
-    private static void processInputFile(String inFile, SIFGraph cpGraph, EdgeSelector cpEdgeSelector,
-                                         SIFGraph ppiGraph, EdgeSelector ppiEdgeSelector, EdgeSelector ksEdgeSelector,
-                                         EdgeSelector acetylEdgeSelector, EdgeSelector tfEdgeSelector, String networkDir, String outFile)
-    {
-        FileUtil.mkdirsOfFilePath(outFile);
-
-        BufferedWriter writer = FileUtil.newBufferedWriter(outFile);
-
-        boolean acetyl = inFile.contains("acetyl");
-
-        String[] header = FileUtil.readHeader(inFile);
-        int cisInd = ArrayUtil.indexOf(header, "cis_gene");
-        int transInd = ArrayUtil.indexOf(header, "trans_gene");
-        int cSlopInd = ArrayUtil.indexOf(header, "cis_slope");
-        int tSlopInd = ArrayUtil.indexOf(header, "trans_slope");
-        int tissueInd = ArrayUtil.indexOf(header, "tissue");
-
-        FileUtil.write(header, "\t", writer);
-        FileUtil.write("\tOver "+ (acetyl ? "an acetyl transferase" : "a kinase") + " path\tCP Distance\tDirected Path\tPPI Distance\tPPI Path", writer);
-
-        int[] max = new int[]{0};
-        FileUtil.linesTabbedSkip1(inFile).forEach(t ->
-        {
-            FileUtil.lnwrite(t, "\t", writer);
-
-            String source = t[cisInd];
-            String target = t[transInd];
-
-            double cisSlope = Double.parseDouble(t[cSlopInd]);
-            double transSlope = Double.parseDouble(t[tSlopInd]);
-
-            String tissue = t[tissueInd];
-
-            Set<Object> mids = QueryExecutor.searchNeighborhood(cpGraph, acetyl ? acetylEdgeSelector : ksEdgeSelector, Collections.singleton(target), Direction.UPSTREAM, 1);
-            mids.remove(target);
-
-            Set<Object> interactors = QueryExecutor.searchNeighborhood(ppiGraph, ppiEdgeSelector, Collections.singleton(source), Direction.UNDIRECTED, 1);
-            interactors.remove(source);
-
-            Set<Object> common = CollectionUtil.getIntersection(mids, interactors);
-
-            if (!common.isEmpty())
-            {
-                FileUtil.tab_write("[" + source + "]-ppi-[" + CollectionUtil.merge(common, ",") + "]-pho-[" + target + "]", writer);
-                writeOverAKinaseSIF(source, target, common.stream().map(Object::toString).collect(Collectors.toSet()), cisSlope, transSlope, tissue, networkDir.replaceFirst("/networks/", "/networks/over-" + (acetyl ? "an-acetyl-transferase" : "a-kinase") + "/"));
-            }
-            else
-            {
-                FileUtil.write("\t", writer);
-            }
-
-            Set<Object> result = Collections.emptySet();
-            int limit;
-            for (limit = 1; result.isEmpty() && limit <= 3; limit++)
-            {
-                // Run the query
-                result = QueryExecutor.searchPathsFromTo(cpGraph, cpEdgeSelector, Collections.singleton(source), Collections.singleton(target), limit);
-            }
-
-            if (!result.isEmpty())
-            {
-                if (limit > max[0]) max[0] = limit;
-                System.out.println(source + "\t" + target + "\t" + limit);
-
-                FileUtil.tab_write(limit-1, writer);
-                FileUtil.tab_write(toString(result, source, true), writer);
-
-                writeDirectedSIF(result, source, target, cisSlope, transSlope, tissue, networkDir.replaceFirst("/networks/", "/networks/directed/"));
-            }
-            else
-            {
-                FileUtil.write("\t\t", writer);
-            }
-
-            result = Collections.emptySet();
-            for (limit = 1; result.isEmpty() && limit <= 1; limit++)
-            {
-                // Run the query
-                result = QueryExecutor.searchPathsBetween(ppiGraph, ppiEdgeSelector, new HashSet<>(Arrays.asList(source, target)), false, limit);
-            }
-
-            if (!result.isEmpty())
-            {
-                FileUtil.tab_write(limit-1, writer);
-                FileUtil.tab_write(toString(result, source, false), writer);
-            }
-            else
-            {
-                FileUtil.write("\t\t", writer);
-            }
-        });
-
-        FileUtil.closeWriter(writer);
-        System.out.println("max = " + max[0]);
-    }
-
-    private static String toString(Set<Object> graph, String source, boolean directed)
-    {
-        List<Set<String>> groups = new ArrayList<>();
-
-        Set<String> currentLayer = Collections.singleton(source);
-
-        Set<String> visited = new HashSet<>();
-        visited.add(source);
-
-        Set<String> nextLayer = getNextLayer(graph, currentLayer, visited, directed);
-        while (!nextLayer.isEmpty())
-        {
-            groups.add(nextLayer);
-            visited.addAll(nextLayer);
-            currentLayer = nextLayer;
-            nextLayer = getNextLayer(graph, currentLayer, visited, directed);
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("[").append(source).append("]");
-        for (Set<String> group : groups)
-        {
-            sb.append("--[").append(CollectionUtil.merge(group, ",")).append("]");
-        }
-        return sb.toString();
-    }
-
-    private static Set<String> getNextLayer(Set<Object> graph, Set<String> currentLayer, Set<String> visited, boolean directed)
-    {
-        Set<String> nextLayer = new HashSet<>();
-
-        for (Object o : graph)
-        {
-            if (o instanceof SIFEdge)
-            {
-                SIFEdge edge = (SIFEdge) o;
-                if (currentLayer.contains(edge.getSource()) && !visited.contains(edge.getTarget()))
-                {
-                    nextLayer.add(edge.getTarget());
-                }
-                else if (!directed && currentLayer.contains(edge.getTarget()) && !visited.contains(edge.getSource()))
-                {
-                    nextLayer.add(edge.getSource());
-                }
-            }
-        }
-
-        return nextLayer;
-    }
-
-    private static void writeDirectedSIF(Set<Object> result, String source, String target, double sourceSlope, double targetSlope, String tissue, String dir)
+    private static void writeDirectedSIF(Set<Object> result, String source, String target, double sourceSlope, double targetSlope, String tissue, AnalysisType type, String dir)
     {
         FileUtil.mkdirs(dir);
-        String name = source + "-to-" + target + "-in-" + tissue;
+        String name = source + "-to-" + target;
+        if (tissue != null) name += "-in-" + tissue;
         BufferedWriter sifWriter = FileUtil.newBufferedWriter(dir + name + ".sif");
 
         result.stream().filter(o -> o instanceof SIFEdge).map(o -> (SIFEdge) o).forEach(edge ->
@@ -278,8 +143,14 @@ public class PathFinder
 
         BufferedWriter fmtWriter = FileUtil.newBufferedWriter(dir + name + ".format");
 
-        FileUtil.writeln("node\t" + source + "\tcolor\t" + SLOPE_COLOR.getColorInString(sourceSlope), fmtWriter);
-        FileUtil.writeln("node\t" + target + "\tcolor\t" + SLOPE_COLOR.getColorInString(targetSlope), fmtWriter);
+        FileUtil.writeln("node\t" + source + "\trppasite\t" + source + "_rna|r|" + SLOPE_COLOR.getColorInString(sourceSlope) + "|50 50 50|" + sourceSlope, fmtWriter);
+
+        if (type == AnalysisType.pQTL)
+            FileUtil.writeln("node\t" + target + "\tcolor\t" + SLOPE_COLOR.getColorInString(targetSlope), fmtWriter);
+        else if (type == AnalysisType.phosphoQTL)
+            FileUtil.writeln("node\t" + target + "\trppasite\t" + target + "_site|p|" + SLOPE_COLOR.getColorInString(targetSlope) + "|50 50 50|" + targetSlope, fmtWriter);
+        else if (type == AnalysisType.acetylQTL)
+            FileUtil.writeln("node\t" + target + "\trppasite\t" + target + "_site|a|" + SLOPE_COLOR.getColorInString(targetSlope) + "|50 50 50|" + targetSlope, fmtWriter);
 
         FileUtil.closeWriter(fmtWriter);
     }
@@ -317,8 +188,7 @@ public class PathFinder
     {
         System.out.println("inFile = " + inFile);
         FileUtil.mkdirsOfFilePath(outFile);
-        AnalysisType type = inFile.contains("phosphoQTL") ? AnalysisType.phosphoQTL : inFile.contains("acetylQTL") ? AnalysisType.acetylQTL : inFile.contains("pQTL") ? AnalysisType.pQTL : null;
-        if (type == null) throw new IllegalArgumentException("Filename not valid: " + inFile);
+        AnalysisType type = deduceAnalysisType(inFile);
 
         BufferedWriter writer = FileUtil.newBufferedWriter(outFile);
 
@@ -343,7 +213,8 @@ public class PathFinder
 
             String source = t[cisInd];
             String target = t[transInd];
-            String tissue = ((cisTissueInd < 0 ? "" : (t[cisTissueInd] + ".")) + t[transTissueInd]).replaceAll(" ", "_");
+            String tissue = cisTissueInd < 0 && transTissueInd < 0 ? null :
+                ((cisTissueInd < 0 ? "" : (t[cisTissueInd] + ".")) + t[transTissueInd]).replaceAll(" ", "_");
             double cisSlope = cSlopInd < 0 ? 0 : Double.parseDouble(t[cSlopInd]);
             double transSlope = tSlopInd < 0 ? 0 : Double.parseDouble(t[tSlopInd]);
             Set<String> sites = sitesInd < 0 ? Collections.emptySet() : new HashSet<>(Arrays.asList(t[sitesInd].split("\\|")));
@@ -434,7 +305,7 @@ public class PathFinder
 
             if (!common2.isEmpty())
             {
-                FileUtil.tab_write("[" + source + "]-cp-[" + CollectionUtil.merge(common2, ",") + "]-" + specText + "-[" + target + "]", writer);
+                FileUtil.tab_write("[" + source + "]-cp-[" + CollectionUtil.merge(attachSites(source, common2, phosphoSSGraph, dephosphoSSGraph, acetylSSGraph, deacetylSSGraph), ",") + "]-" + specText + "-[" + target + "]", writer);
                 cpDwstrQueryResult.stream().filter(o -> o instanceof SIFEdge).map(o -> (SIFEdge) o).filter(e -> common2.contains(e.getTarget())).forEach(resGraph::add);
                 specUpstreamEdges.stream().filter(e -> common2.contains(e.getSource())).forEach(resGraph::add);
                 cnt[3]++;
@@ -454,18 +325,38 @@ public class PathFinder
             Set<Object> common4 = CollectionUtil.getIntersection(new HashSet<>(ssUstrGenes), cpDwstrQueryResult);
             if (!common4.isEmpty())
             {
-                FileUtil.tab_write("[" + source + "]-cp-[" + CollectionUtil.merge(common4, ",") + "]-" + specText + "-[" + target + "]", writer);
+                FileUtil.tab_write("[" + source + "]-cp-[" + CollectionUtil.merge(attachSites(source, common4, phosphoSSGraph, dephosphoSSGraph, acetylSSGraph, deacetylSSGraph), ",") + "]-" + specText + "-[" + target + "]", writer);
             }
             else FileUtil.write("\t", writer);
 
 
-            if (!resGraph.isEmpty()) writeDirectedSIF(resGraph, source, target, cisSlope, transSlope, tissue, networkDir);
+            if (!resGraph.isEmpty()) writeDirectedSIF(resGraph, source, target, cisSlope, transSlope, tissue, type, networkDir);
         });
 
         FileUtil.closeWriter(writer);
 
         System.out.println("cnt " + Arrays.toString(cnt));
 
+    }
+
+    @NotNull
+    private static AnalysisType deduceAnalysisType(String inFile)
+    {
+        AnalysisType type =
+            inFile.contains("phospho") || inFile.contains("kinase") || inFile.contains("phosphatase")  ? AnalysisType.phosphoQTL :
+            inFile.contains("acetyl") ? AnalysisType.acetylQTL :
+            inFile.contains("pQTL") ? AnalysisType.pQTL : null;
+        if (type == null) throw new IllegalArgumentException("Filename not valid: " + inFile);
+        return type;
+    }
+
+    private static boolean hasCisSlope(String file)
+    {
+        String[] header = FileUtil.readHeader(file);
+        int index = ArrayUtil.indexOf(header, "beta_cis");
+        if (index < 0) return false;
+
+        return !FileUtil.linesTabbedSkip1(file).findFirst().get()[index].equals("0");
     }
 
     private static void putPPIsInResults(Set<Object> resGraph, String source, String target, Set<Object> interactors)
@@ -481,8 +372,226 @@ public class PathFinder
             .forEach(resGraph::add);
     }
 
+    private static Set<String> attachSites(String source, Set<Object> targets, SiteSpecificGraph... graphs)
+    {
+        Set<String> withSites = new HashSet<>();
+        for (Object target : targets)
+        {
+            Set<String> sites = new HashSet<>();
+            for (SiteSpecificGraph graph : graphs)
+            {
+                sites.addAll(graph.getSites(source, target.toString()));
+            }
+            if (sites.isEmpty()) withSites.add(target.toString());
+            else
+            {
+                String name = target + "-" + CollectionUtil.merge(sites, "-");
+                withSites.add(name);
+            }
+        }
+        return withSites;
+    }
+
+    private static Map<String, Map<CausalRelationType, Map<String, Set<String>>>> loadCPPriors(String cpFile, String klFile)
+    {
+        Map<String, Map<CausalRelationType, Map<String, Set<String>>>> priors = new HashMap<>();
+        fillInCPMap(cpFile, priors);
+        if (klFile != null) fillInCPMap(klFile, priors);
+        return priors;
+    }
+
+    private static void fillInCPMap(String cpFile, Map<String, Map<CausalRelationType, Map<String, Set<String>>>> priors)
+    {
+        FileUtil.linesTabbed(cpFile).forEach(t ->
+        {
+            if (!(t[1].endsWith("expression") || t[1].contains("phospho") || t[1].contains("acetyl"))) return;
+
+            String source = t[0];
+            if (!priors.containsKey(source)) priors.put(source, new HashMap<>());
+            Map<CausalRelationType, Map<String, Set<String>>> relMap = priors.get(source);
+            CausalRelationType rel = CausalRelationType.get(t[1]);
+            if (!relMap.containsKey(rel)) relMap.put(rel, new HashMap<>());
+            Map<String, Set<String>> tarMap = relMap.get(rel);
+            String target = t[2];
+            if (!tarMap.containsKey(target)) tarMap.put(target, Collections.emptySet());
+
+            if (t.length > 4)
+            {
+                Set<String> newSites = new HashSet<>(Arrays.asList(t[4].split(";")));
+                Set<String> sites = tarMap.get(target);
+                if (sites.isEmpty()) tarMap.put(target, newSites);
+                else sites.addAll(newSites);
+            }
+        });
+    }
+
+    private static void findCausalPaths(String inputFile, String outFile, String networkDir, Map<String, Map<CausalRelationType, Map<String, Set<String>>>> priors, AnalysisType type)
+    {
+        String[] header = FileUtil.readHeader(inputFile);
+        BufferedWriter writer = FileUtil.newBufferedWriter(outFile);
+        SiteEffectCollective sec = new SiteEffectCollective();
+
+        int cisInd = ArrayUtil.indexOf(header, "cis_gene");
+        int transInd = ArrayUtil.indexOf(header, "trans_gene");
+        int cSlopInd = ArrayUtil.indexOf(header, "beta_cis");
+        int tSlopInd = ArrayUtil.indexOf(header, "beta_trans");
+        int cisTissueInd = ArrayUtil.indexOf(header, "cis_tissue");
+        int transTissueInd = ArrayUtil.indexOf(header, "trans_tissue", "tissue");
+        int sitesInd = ArrayUtil.indexOf(header, "PTM_site");
+
+        FileUtil.write(header, "\t", writer);
+
+        FileUtil.linesTabbedSkip1(inputFile).forEach(t ->
+        {
+            FileUtil.lnwrite(t, "\t", writer);
+
+            String source = t[cisInd];
+            String target = t[transInd];
+            String tissue = ((cisTissueInd < 0 ? "" : (t[cisTissueInd] + ".")) + t[transTissueInd]).replaceAll(" ", "_");
+            double cisSlope = cSlopInd < 0 ? 0 : Double.parseDouble(t[cSlopInd]);
+            double transSlope = tSlopInd < 0 ? 0 : Double.parseDouble(t[tSlopInd]);
+            Set<String> sites = sitesInd < 0 ? Collections.emptySet() : new HashSet<>(Arrays.asList(t[sitesInd].split("\\|")));
+
+            int dataSign = (int) Math.signum(cisSlope * transSlope);
+
+            Set<String> edges = new HashSet<>();
+            List<String> formatLines = new ArrayList<>();
+            formatLines.add("node\tall-nodes\tcolor\t255 255 255");
+            formatLines.add("node\tall-nodes\tbordercolor\t0 0 0");
+            formatLines.add("node\t" + source + "\trppasite\t" + source + "_rna|r|" + SLOPE_COLOR.getColorInString(cisSlope) + "|50 50 50|" + cisSlope);
+
+            Map<CausalRelationType, Map<String, Set<String>>> relMap1 = priors.get(source);
+            if (relMap1 != null)
+            {
+                for (CausalRelationType rel1 : relMap1.keySet())
+                {
+                    Map<String, Set<String>> midMap = relMap1.get(rel1);
+                    for (String middle : midMap.keySet())
+                    {
+                        // Check if one step search is sufficient
+                        if (middle.equals(target) && (type == AnalysisType.pQTL || !CollectionUtil.intersectionEmpty(sites, midMap.get(middle))) && dataSign == rel1.sign)
+                        {
+                            Set<String> usedSites = CollectionUtil.getIntersection(sites, midMap.get(middle));
+                            FileUtil.tab_write(source + " " + rel1 + " " + target + (sites.isEmpty() ? "" : "-" + CollectionUtil.merge(usedSites, "-")), writer);
+                            edges.add(source + "\t" + rel1 + "\t" + target);
+                            for (String site : usedSites)
+                            {
+                                Integer effect = sec.getEffect(target, site, rel1.relevantFeature);
+                                String line = "node\t" + target + "\trppasite\t" + target + "_" + site + "|p|" + SLOPE_COLOR.getColorInString(transSlope) + "|" + (effect == null || effect == 0 ? "50 50 50" : effect == 1 ? "0 180 20" : "180 0 20") + "|" + transSlope;
+                                if (!formatLines.contains(line)) formatLines.add(line);
+                            }
+
+                            // No need to go beyond. We found it.
+                            continue;
+                        } // else go on
+
+                        int siteEffect = 1;
+                        Set<String> mSites = new HashSet<>();
+                        if (rel1.isPhospho || rel1.isAcetyl)
+                        {
+                            mSites = midMap.get(middle);
+
+                            Integer effect = sec.getEffect(middle, mSites, rel1.relevantFeature);
+                            siteEffect = Objects.requireNonNullElse(effect, 0);
+                        }
+
+                        if (siteEffect != 0)
+                        {
+                            Map<CausalRelationType, Map<String, Set<String>>> relMap2 = priors.get(middle);
+                            if (relMap2 != null)
+                            {
+                                for (CausalRelationType rel2 : relMap2.keySet())
+                                {
+                                    if ((type ==AnalysisType.pQTL && rel2.isExpression) ||
+                                        (type ==AnalysisType.phosphoQTL && rel2.isPhospho) ||
+                                        (type ==AnalysisType.acetylQTL && rel2.isAcetyl))
+                                    {
+                                        Map<String, Set<String>> tarMap = relMap2.get(rel2);
+                                        if (tarMap.containsKey(target))
+                                        {
+                                            if (type == AnalysisType.pQTL || !CollectionUtil.intersectionEmpty(tarMap.get(target), sites))
+                                            {
+                                                if (dataSign == rel1.sign * siteEffect * rel2.sign)
+                                                {
+                                                    Set<String> usedSites = CollectionUtil.getIntersection(sites, tarMap.get(target));
+                                                    FileUtil.tab_write(source + " " + rel1 + " " + middle +
+                                                        (mSites.isEmpty() ? "" : "-" + CollectionUtil.merge(mSites, "-") + (siteEffect == 1 ? "(a)" : "(i)")) +
+                                                        " " + rel2 + " " + target + (sites.isEmpty() ? "" : "-" + CollectionUtil.merge(usedSites, "-")), writer);
+
+                                                    edges.add(source + "\t" + rel1 + "\t" + middle);
+                                                    edges.add(middle + "\t" + rel2 + "\t" + target);
+                                                    for (String mSite : mSites)
+                                                    {
+                                                        Integer effect = sec.getEffect(middle, mSite, rel1.relevantFeature);
+                                                        if (effect != null && effect != 0)
+                                                            formatLines.add("node\t" + middle + "\trppasite\t" + middle + "_" + mSite + "|p|255 255 255|" + (effect == 1 ? "0 180 20" : "180 0 20") + "|0");
+                                                    }
+                                                    for (String site : usedSites)
+                                                    {
+                                                        Integer effect = sec.getEffect(target, site, rel2.relevantFeature);
+                                                        String line = "node\t" + target + "\trppasite\t" + target + "_" + site + "|p|" + SLOPE_COLOR.getColorInString(transSlope) + "|" + (effect == null || effect == 0 ? "50 50 50" : effect == 1 ? "0 180 20" : "180 0 20") + "|" + transSlope;
+                                                        if (!formatLines.contains(line)) formatLines.add(line);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!edges.isEmpty())
+            {
+                FileUtil.createDirectories(networkDir);
+                String name = source + "-to-" + target + "-in-" + tissue + "-CausalPath";
+                FileUtil.writeLinesToFile(edges, networkDir + name + ".sif");
+                FileUtil.writeLinesToFile(formatLines, networkDir + name + ".format");
+            }
+        });
+        FileUtil.closeWriter(writer);
+    }
+    
     private enum AnalysisType
     {
         pQTL, phosphoQTL, acetylQTL
+    }
+
+    private enum CausalRelationType
+    {
+        phosphorylates(1, Feature.PHOSPHORYLATION, true, false, false),
+        dephosphorylates(-1, Feature.PHOSPHORYLATION, true, false, false),
+        upregulates_expression(1, Feature.GLOBAL_PROTEIN, false, false, true),
+        downregulates_expression(-1, Feature.GLOBAL_PROTEIN, false, false, true),
+        acetylates(1, Feature.ACETYLATION, false, true, false),
+        deacetylates(-1, Feature.ACETYLATION, false, true, false);
+
+        CausalRelationType(int sign, Feature relevantFeature, boolean isPhospho, boolean isAcetyl, boolean isExpression)
+        {
+            this.sign = sign;
+            this.relevantFeature = relevantFeature;
+            this.isPhospho = isPhospho;
+            this.isAcetyl = isAcetyl;
+            this.isExpression = isExpression;
+        }
+
+        int sign;
+        Feature relevantFeature;
+        boolean isPhospho;
+        boolean isAcetyl;
+        boolean isExpression;
+
+        @Override
+        public String toString()
+        {
+            return super.toString().replaceAll("_", "-");
+        }
+
+        public static CausalRelationType get(String name)
+        {
+            return CausalRelationType.valueOf(name.replaceAll("-", "_"));
+        }
     }
 }

@@ -7,22 +7,25 @@ import org.panda.utility.statistics.Summary;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * To fix blackboard file, open it with sublime, cop and paste the text in a new file and save with the same name.
+ * To fix blackboard file, open it with sublime, copy and paste the text in a new file and save with the same name.
+ * DO NOT GENERATE THE NEW FILE BY COPYING THE OLD FILE
+ *
  */
 public class DMGraderFall2022
 {
 	public static void main(String[] args) throws IOException
 	{
-		String dir = "/home/ozgunbabur/Documents/Teaching/DiscreteMath/Fall2022/grading/";
-		Map<String, Double> grades = getOverallGrades(dir + "CS_220_Fall_2022_grades.csv",
-			dir + "gc_B3210-1482_fullgc_2022-12-27-11-38-23.tsv",
-			dir + "UMBCS220MATH320BaburFall2022_assignment_report_2022-12-19_1414.csv");
+		String dir = "/home/ozgunbabur/Documents/Teaching/DiscreteMath/Fall2024/";
+		Map<String, Double> grades = getOverallGrades(dir + "CS_220_Fall_2024_grades.csv",
+			dir + "gc_B3410-1437_fullgc_2024-10-24-13-36-09.tsv",
+			dir + "UMBCS220BaburFall2024_assignment_report_2024-12-19_1641.csv");
 
 		TermCounter tc = new TermCounter();
 		grades.keySet().stream()
@@ -58,7 +61,8 @@ public class DMGraderFall2022
 			if (!mfGrades.containsKey(name))
 			{
 				System.err.println("Blackboard misses: " + name);
-				mfGrades.put(name, new double[]{0, 0});
+//				mfGrades.put(name, new double[]{0, 0});
+				continue;
 			}
 
 			double midterm = mfGrades.get(name)[0];
@@ -66,12 +70,12 @@ public class DMGraderFall2022
 			double hw = hwGrades.get(name);
 			double book = zyBookGrades.get(name);
 
-			double overall = (0.3 * midterm) + (0.4 * finalExam) + (0.15 * book) + (0.15 * hw);
-//			double overall = (0.5 * book) + (0.5 * hw);
+			double overall = (0.35 * midterm) + (0.4 * finalExam) + (0.15 * book) + (0.1 * hw);
+//			double overall = (0.15 * book) + (0.10 * hw) + (0.75 * midterm);
 			gradesMap.put(name, overall);
 		}
 
-		shiftCurveBy(gradesMap, (100 - 89.29399366578691));// + (55 - 54.1040731629393));
+		shiftCurveBy(gradesMap, (100 - 89.9709976284585 + 0.459459459));
 
 		return gradesMap;
 	}
@@ -124,12 +128,13 @@ public class DMGraderFall2022
 
 		FileUtil.lines(file).skip(1).map(l -> l.split(",")).forEach(t ->
 		{
-			String[] s = t[0].split(" ");
-			String name = (s.length > 1 ? s[1] + ", " : "") + s[0];
+			String lastName = t[0].substring(t[0].indexOf(" ") + 1);
+			String name = t[0].substring(0, t[0].indexOf(" "));
+			name = lastName + ", " + name;
 			List<Double> list = new ArrayList<>();
 			grdMap.put(name, list);
 
-			for (int i = 3; i < t.length; i++)
+			for (int i = 4; i < t.length; i++)
 			{
 				if (header[i].startsWith("Homework ") && !header[i].contains(" - ") && !t[i].equals("NA"))
 				{
@@ -169,10 +174,11 @@ public class DMGraderFall2022
 		return avgMap;
 	}
 
-	private static Map<String, double[]> readMidtermAndFinal(String file)
+	private static Map<String, double[]> readMidtermAndFinal(String file) throws IOException
 	{
 		Map<String, double[]> grdMap = new HashMap<>();
 		String[] header = FileUtil.readHeader(file);
+//		String[] header = Files.lines(Paths.get(file), Charset.forName(csName)).findFirst().get().split("\t");
 
 		FileUtil.linesTabbedSkip1(file).forEach(t ->
 		{
@@ -220,6 +226,9 @@ public class DMGraderFall2022
 
 	private static String getLetterGrade(double v)
 	{
+//		if (v < 40) return "F";
+//		else if (v < 70) return "C";
+//		else return "S";
 		if (v < 40) return "F";
 		else if (v < 45) return "D-";
 		else if (v < 50) return "D";

@@ -24,7 +24,8 @@ public class Kai
 //		convertAll();
 //		predictActivity();
 
-		doGSEA(OUT_DIR + "KO-LFD-vs-WT-LFD/data.tsv", OUT_DIR + "KO-LFD-vs-WT-LFD/gsea.tsv");
+//		doGSEA(OUT_DIR + "KO-LFD-vs-WT-LFD/data.tsv", OUT_DIR + "KO-LFD-vs-WT-LFD/gsea.tsv");
+		convertLinPaper();
 	}
 
 	static void convertAll() throws IOException
@@ -132,6 +133,140 @@ public class Kai
 
 					sb.append("\n").append(id).append("\t").append(sym).append("\t")
 						.append(CollectionUtil.merge(siteList, "|")).append("\tP\t\t").append(p);
+				} else cnt[NO_HUM_SYM]++;
+			} else if (map.isEmpty()) cnt[ONE_TO_NONE]++;
+			else cnt[ONE_TO_MANY]++;
+		});
+		System.out.println("cnt[ONE_TO_ONE] = " + cnt[ONE_TO_ONE]);
+		System.out.println("cnt[ONE_TO_MANY] = " + cnt[ONE_TO_MANY]);
+		System.out.println("cnt[ONE_TO_NONE] = " + cnt[ONE_TO_NONE]);
+		System.out.println("cnt[NO_HUM_SYM] = " + cnt[NO_HUM_SYM]);
+	}
+
+	static void convertLinPaper() throws IOException
+	{
+		String base = "/home/ozgunbabur/Analyses/Kai/LinPaper/";
+		StringBuilder sb = new StringBuilder();
+		covertLinPhospho(base + "phosphoproteomic-data.tsv", sb);
+		covertLinTotalProt(base + "proteomic-data.tsv", sb);
+
+		String outFile = base + "/data.tsv";
+		FileUtil.mkdirsOfFilePath(outFile);
+		BufferedWriter writer = FileUtil.newBufferedWriter(outFile);
+		writer.write("ID\tSymbols\tSites\tFeature\tEffect\t6h\t24h\t72h");
+		writer.write(sb.toString());
+		writer.close();
+	}
+
+	static void covertLinTotalProt(String file, StringBuilder sb)
+	{
+		int idInd = 2;
+		int valStartInd = 11;
+
+		FileUtil.linesTabbedSkip1(file).forEach(t ->
+		{
+			if (t.length <= valStartInd || t[valStartInd].isEmpty()) return;
+
+			String up = t[idInd];
+
+			String mSym = MGI.get().getSymbol(up);
+			if (mSym == null) return;
+
+			Set<String> hSyms = MGI.get().getCorrespondingHumanSymbols(mSym);
+
+			if (hSyms.size() == 1)
+			{
+				String sym = hSyms.iterator().next();
+
+				double p6 = Double.parseDouble(t[valStartInd + 7]);
+				if (t[valStartInd].startsWith("-")) p6 = -p6;
+
+				double p24 = Double.parseDouble(t[valStartInd + 7 + 1]);
+				if (t[valStartInd + 1].startsWith("-")) p24 = -p24;
+
+				double p72 = Double.parseDouble(t[valStartInd + 7 + 2]);
+				if (t[valStartInd + 2].startsWith("-")) p72 = -p72;
+
+				sb.append("\n").append(sym).append("\t").append(sym).append("\t\tG\t\t").append(p6).append("\t").append(p24).append("\t").append(p72);
+			}
+		});
+	}
+	static void covertLinPhospho(String file, StringBuilder sb)
+	{
+		System.out.println("file = " + file);
+		int idInd = 2;
+		int valStart = 13;
+		int seqInd = 4;
+		int siteInd = 3;
+
+		UniqueMaker um = new UniqueMaker();
+
+		int[] cnt = new int[4];
+		int ONE_TO_ONE = 0;
+		int ONE_TO_NONE = 1;
+		int ONE_TO_MANY = 2;
+		int NO_HUM_SYM = 3;
+
+		FileUtil.linesTabbedSkip1(file).forEach(t ->
+		{
+			if (t.length < 5 || t[seqInd].isEmpty() || t[valStart].isEmpty() || t[siteInd].isEmpty()) return;
+
+			boolean canonical = !t[idInd].contains("-");
+			String up = t[idInd];
+			if (!canonical) up = up.substring(0, up.indexOf("-"));
+
+			String[] siteArr = t[siteInd].split(";");
+			String[] seqArr = t[seqInd].split(";");
+
+			List<String> siteList = new ArrayList<>();
+			for (int i = 0; i < siteArr.length; i++)
+			{
+				String site = siteArr[i].replace("(", "").replace(")", "");
+
+				if (!canonical)
+				{
+					if (seqArr[i].contains("_")) seqArr[i] = seqArr[i].substring(0, seqArr[i].indexOf("_"));
+					int loc = UniProtSequence.get().getStartLocation(up, seqArr[i]);
+					if (loc > 0)
+					{
+						loc += 15;
+						siteList.add(site.substring(0, 1) + loc);
+					}
+				}
+				else siteList.add(site);
+			}
+
+			if (siteList.isEmpty()) return; // no need to consider this row further
+
+			Map<String, List<String>> map = SiteMappingMouseToHuman.get().mapToHumanSite(up, siteList.toArray(new String[0]));
+
+			if (map.size() == 1)
+			{
+				String hUP = map.keySet().iterator().next();
+				String sym = HGNC.get().getSymbol(hUP);
+
+				if (sym != null)
+				{
+					cnt[ONE_TO_ONE]++;
+					siteList = map.get(hUP);
+
+					String id = sym + "-" + CollectionUtil.merge(siteList, "-");
+					id = um.get(id);
+
+					double p6 = Double.parseDouble(t[valStart+7]);
+					if (p6 == 0) p6 = 1E-10;
+					if (t[valStart].startsWith("-")) p6 = -p6;
+
+					double p24 = Double.parseDouble(t[valStart+7+1]);
+					if (p24 == 0) p24 = 1E-10;
+					if (t[valStart+1].startsWith("-")) p24 = -p24;
+
+					double p72 = Double.parseDouble(t[valStart+7+2]);
+					if (p72 == 0) p72 = 1E-10;
+					if (t[valStart+2].startsWith("-")) p72 = -p72;
+
+					sb.append("\n").append(id).append("\t").append(sym).append("\t")
+						.append(CollectionUtil.merge(siteList, "|")).append("\tP\t\t").append(p6).append("\t").append(p24).append("\t").append(p72);
 				} else cnt[NO_HUM_SYM]++;
 			} else if (map.isEmpty()) cnt[ONE_TO_NONE]++;
 			else cnt[ONE_TO_MANY]++;

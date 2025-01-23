@@ -27,9 +27,12 @@ public class CausalPathSubnetwork
 {
 	public static void main(String[] args) throws IOException
 	{
-		Set<String> goi = new HashSet<>(Arrays.asList("MAPK1", "MAPK3"));
-		String dir = "/home/ozgunbabur/Analyses/Aslan-Thrombin-PAR/Regular-CP/strict-sitematch/Resting-vs-Thrombin";
-		writeGOINeighForCompBased(dir, goi, StreamDirection.BOTHSTREAM, "MAPK1-3-neigh");
+//		Set<String> goi = new HashSet<>(Arrays.asList("MAPK1", "MAPK3"));
+//		String dir = "/home/ozgunbabur/Analyses/Aslan-Thrombin-PAR/Regular-CP/strict-sitematch/Resting-vs-Thrombin";
+//		writeGOINeighForCompBased(dir, goi, StreamDirection.BOTHSTREAM, "MAPK1-3-neigh");
+
+//		writeChemSubset("/home/ozgunbabur/Analyses/Platelet-Blood-paper/ghatge-metabolome/cond2-relax1aa/", "causative", "causative-chem-subset");
+		writeDownstreamSubgraph("/home/ozgunbabur/Analyses/Platelet-Blood-paper/ghatge-metabolome/cond2-relax1aa/", Collections.singleton("BTK"), "BTK-downstream");
 	}
 
 	public static UndirectedGraph loadPPIGraph()
@@ -210,6 +213,14 @@ public class CausalPathSubnetwork
 //			writeSubsetFormat(dir + "/causative.format", dir + "/" + outSIFNoExt + ".format", null, ids);
 			writeSubsetFormat(dir + "/causative.format", dir + "/" + outSIFNoExt + ".format", null, null);
 		}
+	}
+
+	public static void writeChemSubset(String dir, String inSIFNoExt, String outSIFNoExt) throws IOException
+	{
+		BufferedWriter writer = FileUtil.newBufferedWriter(dir + "/" + outSIFNoExt + ".sif");
+		FileUtil.lines(dir + "/" + inSIFNoExt + ".sif").filter(l -> l.contains("CHEBI:")).forEach(l -> FileUtil.writeln(l, writer));
+		writer.close();
+		writeSubsetFormat(dir + "/" + inSIFNoExt + ".format", dir + "/" + outSIFNoExt + ".format", null, null);
 	}
 
 	public static void writeDownstreamSubgraph(String dir, Set<String> seeds, String outSIFNoExt) throws IOException

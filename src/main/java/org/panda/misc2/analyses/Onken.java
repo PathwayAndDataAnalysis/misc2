@@ -16,18 +16,18 @@ import java.io.IOException;
 import java.util.*;
 
 public class Onken {
-//		public static final String DATA_DIR = "/home/ozgunbabur/Data/Onken/";
-	public static final String DATA_DIR = "/Users/ozgun/Data/Onken/";
-//		public static final String OUT_DIR = "/home/ozgunbabur/Analyses/Onken/";
-	public static final String OUT_DIR = "/Users/ozgun/Analyses/Onken/";
+		public static final String DATA_DIR = "/home/ozgunbabur/Data/Onken/";
+//	public static final String DATA_DIR = "/Users/ozgun/Data/Onken/";
+		public static final String OUT_DIR = "/home/ozgunbabur/Analyses/Onken/";
+//	public static final String OUT_DIR = "/Users/ozgun/Analyses/Onken/";
 
 	public static final String[] CELL_LINES = new String[]{"MP41", "MP46", "OCM"};
 
 	public static void main(String[] args) throws IOException {
-		getGOIMap();
+//		getGOIMap();
 //		convertData();
 //		predictKinaseActivity();
-//		generateSubgraphs();
+		generateSubgraphs();
 	}
 
 	private static void generateSubgraphs() throws IOException
@@ -187,27 +187,43 @@ public class Onken {
 	private static Map<String, Set<String>> getGOIMap()
 	{
 		Map<String, Set<String>> goiMap = new HashMap<>();
-		goiMap.put("CDK1-2", new HashSet<>(Arrays.asList("CDK1", "CDK2")));
-		goiMap.put("RPS6KA1", new HashSet<>(List.of("RPS6KA1")));
-		goiMap.put("PRKC", new HashSet<>(Arrays.asList("PRKCA", "PRKCD")));
-		goiMap.put("AURKA", new HashSet<>(List.of("AURKA")));
-		goiMap.put("MAPK1-3", new HashSet<>(Arrays.asList("MAPK1", "MAPK3")));
-		goiMap.put("CSNK2A1", new HashSet<>(List.of("CSNK2A1")));
-		goiMap.put("PRKACA", new HashSet<>(List.of("PRKACA")));
-		goiMap.put("PRKA", new HashSet<>(Arrays.asList("PRKAB1", "PRKAG2")));
-		goiMap.put("RPS6K", new HashSet<>(Arrays.asList("RPS6KA1", "RPS6KA2", "RPS6KA3", "RPS6KA4", "RPS6KA5", "RPS6KA6", "RPS6KB1", "RPS6KB2")));
-		goiMap.put("CDK7-12-13", new HashSet<>(Arrays.asList("CDK7", "CDK12", "CDK13")));
+//		goiMap.put("CDK1-2", new HashSet<>(Arrays.asList("CDK1", "CDK2")));
+//		goiMap.put("RPS6KA1", new HashSet<>(List.of("RPS6KA1")));
+//		goiMap.put("PRKC", new HashSet<>(Arrays.asList("PRKCA", "PRKCD")));
+//		goiMap.put("AURKA", new HashSet<>(List.of("AURKA")));
+//		goiMap.put("MAPK1-3", new HashSet<>(Arrays.asList("MAPK1", "MAPK3")));
+//		goiMap.put("CSNK2A1", new HashSet<>(List.of("CSNK2A1")));
+//		goiMap.put("PRKACA", new HashSet<>(List.of("PRKACA")));
+//		goiMap.put("PRKA", new HashSet<>(Arrays.asList("PRKAB1", "PRKAG2")));
+//		goiMap.put("RPS6K", new HashSet<>(Arrays.asList("RPS6KA1", "RPS6KA2", "RPS6KA3", "RPS6KA4", "RPS6KA5", "RPS6KA6", "RPS6KB1", "RPS6KB2")));
+//		goiMap.put("CDK7-12-13", new HashSet<>(Arrays.asList("CDK7", "CDK12", "CDK13")));
 
-		String[] goTerms = new String[]{"GO:0005975", "GO:0006109", "GO:0006629", "GO:0019216", "GO:0006099", 
-			"GO:0006366", "GO:0008380", "GO:0006368", "GO:0006281", "GO:0006378", "GO:0006310", "GO:0006260"};
+//		String[] goTerms = new String[]{"GO:0005975", "GO:0006109", "GO:0006629", "GO:0019216", "GO:0006099",
+//			"GO:0006366", "GO:0008380", "GO:0006368", "GO:0006281", "GO:0006378", "GO:0006310", "GO:0006260"};
+//		String[] goTerms = new String[]{"GO:0051592"};
+		String[] goTerms = new String[]{};
 
 		for (String termID : goTerms)
 		{
 			String name = GO.get().getNameOfTerm(termID).replaceAll(" ", "-");
 			goiMap.put(name, GO.get().getGenesOfTerm(termID));
 		}
-		
-		System.out.println("\nDNA replication\n" + GO.get().getNameOfTerm("GO:0006260"));
+
+		String[][] sets = new String[][]{{"calcium", "calmodulin"}};
+
+		for (String[] set : sets)
+		{
+			String name = "GO-terms-with";
+			Set<String> genes = new HashSet<>();
+
+			for (String keyword : set)
+			{
+				name += "-" + keyword;
+				genes.addAll(GO.get().getGenesContainingKeywordInTermNames(keyword));
+			}
+			System.out.println("genes.size() = " + genes.size());
+			goiMap.put(name, genes);
+		}
 
 		return goiMap;
 	}

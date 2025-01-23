@@ -3,7 +3,6 @@ package org.panda.misc2;
 import org.panda.utility.ArrayUtil;
 import org.panda.utility.CollectionUtil;
 import org.panda.utility.FileUtil;
-import org.panda.utility.statistics.Histogram;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -13,9 +12,11 @@ import java.util.stream.Collectors;
 public class KisanseLibraryReader
 {
 	static final int PERCENT_THRESHOLD = 90;
-	static final int RANK_THRESHOLD = 15;
+//	static final int RANK_THRESHOLD = 15;
+	static final int RANK_THRESHOLD = 5;
 	static final String DIR = "/home/ozgunbabur/Data/KinaseLibrary/";
-	static final String SUPP_PATH = DIR + "KL_scores.csv";
+	static final String SCORES_ST_PATH = DIR + "KL_scores_ST.csv";
+	static final String SCORES_Y_PATH = DIR + "KL_scores_Y.csv";
 	static final String SIF_PATH = DIR + "kinase-library-p"+ PERCENT_THRESHOLD +"-r" + RANK_THRESHOLD + ".sif";
 
 	public static void main(String[] args) throws IOException
@@ -23,54 +24,65 @@ public class KisanseLibraryReader
 //		load(PERCENT_THRESHOLD, RANK_THRESHOLD);
 		convertToSIF(PERCENT_THRESHOLD, RANK_THRESHOLD);
 //		compareCPAndKL();
+//		compareKinases();
+	}
+
+	public static void compareKinases()
+	{
+		String[] t1 = FileUtil.readFirstLine(SCORES_ST_PATH).split("\t");
+		String[] t2 = FileUtil.readFirstLine(SCORES_Y_PATH).split("\t");
+
+		Set<String> s1 = new HashSet<>();
+		Set<String> s2 = new HashSet<>();
+
+		for (String s : t1)
+		{
+			if (s.endsWith("_rank")) s1.add(s.substring(0, s.length() - 5));
+		}
+		for (String s : t2)
+		{
+			if (s.endsWith("_rank")) s2.add(s.substring(0, s.length() - 5));
+		}
+		CollectionUtil.printVennSets(s1, s2);
 	}
 
 	private static Map<String, Map<String, Map<String, double[]>>> load(double percentileThr, int rankThr)
 	{
 		Map<String, Map<String, Map<String, double[]>>> map = new HashMap<>();
 
-		String[] header = FileUtil.readHeader(SUPP_PATH);
-		int geneInd = ArrayUtil.indexOf(header, "Gene");
-		int siteInd = ArrayUtil.indexOf(header, "Phosphosite");
-		int kinStartInd = ArrayUtil.indexOf(header, "AAK1_percentile");
+		String[] headerST = FileUtil.readHeader(SCORES_ST_PATH);
+		int geneIndST = ArrayUtil.indexOf(headerST, "Gene");
+		int siteIndST = ArrayUtil.indexOf(headerST, "Phosphosite");
+		int kinStartIndST = ArrayUtil.indexOf(headerST, "AAK1_percentile");
 
-		int[] kinCnt = new int[212];
 		Map<String, Integer> subsCnt = new HashMap<>();
 
-		FileUtil.linesTabbedSkip1(SUPP_PATH)
-			.filter(t -> !t[geneInd].isEmpty() && !t[geneInd].contains(";"))
+		FileUtil.linesTabbedSkip1(SCORES_ST_PATH)
+			.filter(t -> !t[geneIndST].isEmpty() && !t[geneIndST].contains(";"))
 			.forEach(t ->
 		{
-			String target = t[geneInd];
-			String site = t[siteInd];
+			String target = t[geneIndST];
+			String site = t[siteIndST];
 
-			int cnt = 0;
-
-			for (int i = kinStartInd; i < t.length; i+=2)
+			for (int i = kinStartIndST; i < t.length; i+=2)
 			{
 				double percentile = Double.parseDouble(t[i]);
 
 				if (percentile >= percentileThr)
 				{
-					cnt++;
-
-					String kinase = header[i].substring(0, header[i].lastIndexOf("_"));
+					String kinase = headerST[i].substring(0, headerST[i].lastIndexOf("_"));
 					subsCnt.put(kinase, subsCnt.getOrDefault(kinase, 0) + 1);
 				}
 			}
 
-			kinCnt[cnt]++;
-
-//			if (cnt <= rankThr)
-			for (int i = kinStartInd; i < t.length; i += 2)
+			for (int i = kinStartIndST; i < t.length; i += 2)
 			{
-				String kinase = header[i].substring(0, header[i].lastIndexOf("_"));
+				String kinase = headerST[i].substring(0, headerST[i].lastIndexOf("_"));
 				double percentile = Double.parseDouble(t[i]);
 				int rank = Integer.parseInt(t[i+1]);
 
 				if (percentile >= percentileThr && rank <= rankThr)
 				{
-					cnt++;
 					if (!map.containsKey(kinase)) map.put(kinase, new HashMap<>());
 
 					Map<String, Map<String, double[]>> targetMap = map.get(kinase);
@@ -80,23 +92,45 @@ public class KisanseLibraryReader
 			}
 		});
 
-		double total = ArrayUtil.sum(kinCnt);
-		int[] cum = new int[kinCnt.length];
-		cum[0] = kinCnt[0];
-		for (int i = 1; i < kinCnt.length; i++)
-		{
-			cum[i] = cum[i-1] + kinCnt[i];
-		}
-		for (int i = 0; i < cum.length; i++)
-		{
-//			System.out.println(i + "\t" + (cum[i] / total));
-//			System.out.println(i + "\t" + kinCnt[i]);
-		}
+		String[] headerY = FileUtil.readHeader(SCORES_Y_PATH);
+		int geneIndY = ArrayUtil.indexOf(headerY, "Gene");
+		int siteIndY = ArrayUtil.indexOf(headerY, "Phosphosite");
+		int kinStartIndY = ArrayUtil.indexOf(headerY, "ABL_percentile");
 
-//		Histogram h = new Histogram(100);
-//		h.setBorderAtZero(true);
-//		subsCnt.forEach((s, integer) -> h.count(integer));
-//		h.print();
+		FileUtil.linesTabbedSkip1(SCORES_Y_PATH)
+			.filter(t -> !t[geneIndY].isEmpty() && !t[geneIndY].contains(";"))
+			.forEach(t ->
+		{
+			String target = t[geneIndY];
+			String site = t[siteIndY];
+
+			for (int i = kinStartIndY; i < t.length; i+=2)
+			{
+				double percentile = Double.parseDouble(t[i]);
+
+				if (percentile >= percentileThr)
+				{
+					String kinase = headerY[i].substring(0, headerY[i].lastIndexOf("_"));
+					subsCnt.put(kinase, subsCnt.getOrDefault(kinase, 0) + 1);
+				}
+			}
+
+			for (int i = kinStartIndY; i < t.length; i += 2)
+			{
+				String kinase = headerY[i].substring(0, headerY[i].lastIndexOf("_"));
+				double percentile = Double.parseDouble(t[i]);
+				int rank = Integer.parseInt(t[i+1]);
+
+				if (percentile >= percentileThr && rank <= rankThr)
+				{
+					if (!map.containsKey(kinase)) map.put(kinase, new HashMap<>());
+
+					Map<String, Map<String, double[]>> targetMap = map.get(kinase);
+					if (!targetMap.containsKey(target)) targetMap.put(target, new HashMap<>());
+					if (!targetMap.get(target).containsKey(site)) targetMap.get(target).put(site, new double[]{percentile, rank});
+				}
+			}
+		});
 
 		return map;
 	}
