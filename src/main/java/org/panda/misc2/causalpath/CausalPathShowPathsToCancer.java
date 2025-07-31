@@ -14,7 +14,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Assumes each proteomic row has one gene.
@@ -26,17 +29,18 @@ public class CausalPathShowPathsToCancer
 	{
 //		generateRecursivelyComparison("/Users/ozgun/Documents/Analyses/CPTAC-LSCC-3.2/clusters/against-normals", Boolean.TRUE);
 //		generateRecursivelyComparison("/Users/ozgun/Documents/Analyses/CPTAC-LSCC-3.2/temp", null);
-		generateRecursivelyComparison("/Users/ozgun/Documents/Analyses/CPTAC-PanCan/clusters/against-others-diffexp", null);
+		generateRecursivelyComparison("/home/ozgunbabur/Analyses/CPTAC-LSCC/v3/NMF-subtype-vs-others", false);
+//		generateRecursivelyComparison("/home/ozgunbabur/Analyses/CPTAC-LSCC/v3/tumors-vs-normals-per-NMF-subtype", null);
 	}
 
-	public static void generateRecursivelyComparison(String dir, Boolean phospho) throws IOException
+	public static void generateRecursivelyComparison(String dir, Boolean geneexp) throws IOException
 	{
 		if (Files.exists(Paths.get(dir + "/results.txt")))
-			writeOncogenicRelations(dir, phospho);
+			writeOncogenicRelations(dir, geneexp);
 
 		for (File d : new File(dir).listFiles())
 		{
-			if (d.isDirectory()) generateRecursivelyComparison(d.getPath(), phospho);
+			if (d.isDirectory()) generateRecursivelyComparison(d.getPath(), geneexp);
 		}
 	}
 
@@ -51,23 +55,35 @@ public class CausalPathShowPathsToCancer
 		}
 	}
 
-	private static void writeOncogenicRelations(String dir, Boolean phospho) throws IOException
+	private static void writeOncogenicRelations(String dir, Boolean geneexp) throws IOException
 	{
-		String outName = "/oncogenic-changes" + (phospho == null ? "" : phospho ? "-phospho" : "-express");
+		String outName = "/oncogenic-changes" + (geneexp == null ? "" : !geneexp ? "-phospho" : "-express");
+//		String outName = "/oncogenic-changes-lung" + (geneexp == null ? "" : !geneexp ? "-phospho" : "-express");
+
+		String resultFile = dir + "/results.txt";
+		String[] header = FileUtil.readHeader(resultFile);
+		int srcInd = ArrayUtil.indexOf(header, "Source");
+		int tgtInd = ArrayUtil.indexOf(header, "Target");
+		int relInd = ArrayUtil.indexOf(header, "Relation");
+		int srcIDInd = ArrayUtil.indexOf(header, "Source data ID");
+		int tgtIDInd = ArrayUtil.indexOf(header, "Target data ID");
+		int srcValInd = ArrayUtil.indexOf(header, "Source change");
+		int tgtValInd = ArrayUtil.indexOf(header, "Target change");
+		int sitesInd = ArrayUtil.indexOf(header, "Sites");
 
 		Set<String> subsetIDs = new HashSet<>();
 		Set<String> genes = new HashSet<>();
 		Set<String> activatedOncogeneSymbols = new HashSet<>();
 
 		BufferedWriter writer = Files.newBufferedWriter(Paths.get(dir + outName + ".sif"));
-		Files.lines(Paths.get(dir + "/results.txt")).skip(1).map(l -> l.split("\t")).forEach(t ->
+		Files.lines(Paths.get(resultFile)).skip(1).map(l -> l.split("\t")).forEach(t ->
 		{
-			String geneA = t[0];
-			String geneB = t[2];
-			String idA = t[4];
-			String valA = t[5];
-			String idB = t[7];
-			String valB = t[8];
+			String geneA = t[srcInd];
+			String geneB = t[tgtInd];
+			String idA = t[srcIDInd];
+			String valA = t[srcValInd];
+			String idB = t[tgtIDInd];
+			String valB = t[tgtValInd];
 			boolean upA = !valA.startsWith("-");
 			boolean upB = !valB.startsWith("-");
 
@@ -84,9 +100,9 @@ public class CausalPathShowPathsToCancer
 				activatedOncogeneSymbols.add(geneB);
 			}
 
-			if (select(t, phospho))
+			if (select(t, geneexp, srcInd, relInd, tgtInd, srcIDInd, srcValInd, tgtIDInd, tgtValInd))
 			{
-				FileUtil.writeln(ArrayUtil.merge("\t", t[0], t[1], t[2], "", t[3]), writer);
+				FileUtil.writeln(ArrayUtil.merge("\t", t[srcInd], t[relInd], t[tgtInd], "", t[sitesInd]), writer);
 				subsetIDs.add(idA);
 				subsetIDs.add(idB);
 				genes.add(geneA);
@@ -106,11 +122,13 @@ public class CausalPathShowPathsToCancer
 		BufferedWriter writer = Files.newBufferedWriter(Paths.get(outFile));
 		writer.write("node\tall-nodes\tcolor\t255 255 255\nnode\tall-nodes\tbordercolor\t50 50 50");
 
+		getBackgroundColors(inFile, ids).forEach(l -> FileUtil.lnwrite(l, writer));
+
 		Files.lines(Paths.get(inFile)).forEach(l ->
 		{
 			String[] t = l.split("\t");
 
-			if (t[2].equals("rppasite") && ids.contains(t[3].split("\\|")[0]) || (genes.contains(t[1]) && t[3].contains("|a|")))
+			if (t[2].equals("rppasite") && ids.contains(t[3].split("\\|")[0]) || (genes.contains(t[1]) && (t[3].contains("|!|") || t[3].contains("|i|"))))
 			{
 				FileUtil.lnwrite(l, writer);
 			}
@@ -130,6 +148,23 @@ public class CausalPathShowPathsToCancer
 //		if (goi != null) goi.forEach(g -> FileUtil.writeln("node\t" + g + "\tborderwidth\t2", writer));
 
 		writer.close();
+	}
+
+	private static Set<String> getBackgroundColors(String inFile, Set<String> ids)
+	{
+		Set<String> bgColorLines = new HashSet<>();
+
+		Map<String, String> idToSym = FileUtil.linesTabbed(inFile).filter(t -> t[2].equals("tooltip")).collect(Collectors.toMap(t -> t[3].substring(0, t[3].indexOf(",")), t -> t[1]));
+		Set<String> symsToCare = ids.stream().filter(idToSym::containsKey).map(idToSym::get).collect(Collectors.toSet());
+		FileUtil.lines(inFile).forEach(l ->
+		{
+			String[] t = l.split("\t");
+			if (t.length > 3 && symsToCare.contains(t[1]) && (t[2].equals("color") || t[2].equals("tooltip")))
+			{
+				bgColorLines.add(l);
+			}
+		});
+		return bgColorLines;
 	}
 
 	public static void writeSubsetFormatCorrelation(String inFile, String outFile, Set<String> ids, Set<String> genes) throws IOException
@@ -161,42 +196,46 @@ public class CausalPathShowPathsToCancer
 		writer.close();
 	}
 
-	private static boolean select(String[] t, Boolean phospho)
+	private static boolean select(String[] t, Boolean geneexp, int srcInd, int relInd, int tgtInd, int srcIDInd,
+								  int srcValInd, int tgtIDInd, int tgtValInd)
 	{
-		String geneA = t[0];
-		String rel = t[1];
-		String geneB = t[2];
-		String idA = t[4];
-		String valA = t[5];
-		String idB = t[7];
-		String valB = t[8];
+		String geneA = t[srcInd];
+		String rel = t[relInd];
+		String geneB = t[tgtInd];
+		String idA = t[srcIDInd];
+		String valA = t[srcValInd];
+		String idB = t[tgtIDInd];
+		String valB = t[tgtValInd];
 		boolean upA = !valA.startsWith("-");
 		boolean upB = !valB.startsWith("-");
 
-		idA = fixTheID(idA, geneA);
-		idB = fixTheID(idB, geneB);
+//		idA = fixTheID(idA, geneA);
+//		idB = fixTheID(idB, geneB);
 
 		return isOncogenic(geneB, idB, upB) && // target change is oncogenic
 			!isOncogenic(geneA, idA, !upA) && // reverse change of A is not oncogenic
-				(phospho == null || (phospho == rel.contains("phospho"))) && // relation is of interest
+				(geneexp == null || (geneexp == rel.endsWith("expression"))) && // relation is of interest
 					isActivated(geneA, idA, upA); // upstream is activated
 
 	}
 
 	private static boolean isActivated(String gene, String id, boolean up)
 	{
-		if (id.equals(gene) || id.endsWith("-by-network-sig") || id.equals(gene + "-rna"))
+		if (id.equals(gene) || id.endsWith("-by-network-sig") || id.equals(gene + "-rna") || id.endsWith("_G"))
 		{
 			return up;
 		}
 		else
 		{
-			for (String site : id.substring(gene.length() + 1).split("-"))
+			for (String site : id.substring(gene.length() + 1).split("[-_]"))
 			{
-				Integer eff = IdentifyOncogenicProteomicChanges.getSiteEffect(gene, site);
-				if (eff != null && eff != 0)
+				if (site.length() > 1)
 				{
-					return eff > 0 == up;
+					Integer eff = IdentifyOncogenicProteomicChanges.getSiteEffect(gene, site);
+					if (eff != null && eff != 0)
+					{
+						return eff > 0 == up;
+					}
 				}
 			}
 		}
@@ -223,21 +262,20 @@ public class CausalPathShowPathsToCancer
 
 	private static boolean isOncogenic(String gene, String id, boolean up)
 	{
-		if (id.equals(gene) || id.endsWith("-by-network-sig") || id.equals(gene + "-rna"))
+		if (id.equals(gene) || id.endsWith("-by-network-sig") || id.equals(gene + "-rna") || id.endsWith("_G") ||  id.endsWith("_R") || id.endsWith("_C"))
 		{
-			if (IdentifyOncogenicProteomicChanges.isChangeOncogenic(gene, null, null, up))
-			{
-				return true;
-			}
+			return IdentifyOncogenicProteomicChanges.isChangeOncogenic(gene, null, null, up);
+//			return IdentifyOncogenicProteomicChanges.isChangeOncogenicForLung(gene, null, null, up);
 		}
 		else
 		{
-			Feature mod = id.endsWith("-P") || id.contains("-P-") ? Feature.PHOSPHORYLATION : id.endsWith("-A") || id.contains("-A-") ? Feature.ACETYLATION : null;
+			Feature mod = id.endsWith("-P") || id.contains("-P-") || id.endsWith("_P") ? Feature.PHOSPHORYLATION : id.endsWith("-A") || id.contains("-A-") || id.endsWith("_A")? Feature.ACETYLATION : id.endsWith("_C") ? Feature.METABOLITE : null;
 			if (mod == null) throw new RuntimeException("Modification is unknown. ID: " + id);
 
-			for (String site : id.substring(gene.length() + 1).split("-"))
+			for (String site : id.substring(gene.length() + 1).split("[-_]"))
 			{
 				if (site.length() > 1 && IdentifyOncogenicProteomicChanges.isChangeOncogenic(gene, site, mod, up))
+//				if (site.length() > 1 && IdentifyOncogenicProteomicChanges.isChangeOncogenicForLung(gene, site, mod, up))
 				{
 					return true;
 				}
@@ -246,6 +284,9 @@ public class CausalPathShowPathsToCancer
 		return false;
 	}
 
+	/**
+	 * Outdated method. Result file structure has changed.
+	 */
 	private static void writeOncogenicRelationsForCorrelation(String dir) throws IOException
 	{
 		String outName = "/oncogenic-changes";

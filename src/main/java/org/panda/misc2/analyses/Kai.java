@@ -25,7 +25,7 @@ public class Kai
 //		predictActivity();
 
 //		doGSEA(OUT_DIR + "KO-LFD-vs-WT-LFD/data.tsv", OUT_DIR + "KO-LFD-vs-WT-LFD/gsea.tsv");
-		convertLinPaper();
+		convertBlazevPaper();
 	}
 
 	static void convertAll() throws IOException
@@ -275,6 +275,86 @@ public class Kai
 		System.out.println("cnt[ONE_TO_MANY] = " + cnt[ONE_TO_MANY]);
 		System.out.println("cnt[ONE_TO_NONE] = " + cnt[ONE_TO_NONE]);
 		System.out.println("cnt[NO_HUM_SYM] = " + cnt[NO_HUM_SYM]);
+	}
+
+	static void convertBlazevPaper() throws IOException
+	{
+		String base = "/home/ozgunbabur/Analyses/Kai/BlazevPaper/";
+		StringBuilder sb = new StringBuilder();
+		covertBlazevPhospho(base + "phosphoproteomics.tsv", sb);
+		covertBlazevTotalProt(base + "proteomics.tsv", sb);
+
+		String outFile = base + "/data.tsv";
+		FileUtil.mkdirsOfFilePath(outFile);
+		BufferedWriter writer = FileUtil.newBufferedWriter(outFile);
+		writer.write("ID\tSymbols\tSites\tFeature\tEffect\tPostEndurance/PreEndurance\tRecoveryEndurance/PreEndurance\tPostSprint/PreSprint\tRecoverySprint/PreSprint\tPostResistance/PreResistance\tRecoveryResistance/PreResistance");
+		writer.write(sb.toString());
+		writer.close();
+	}
+
+	static void covertBlazevTotalProt(String file, StringBuilder sb)
+	{
+		int symInd = 3;
+		int valStartInd = 4;
+
+		FileUtil.linesTabbedSkip1(file).forEach(t ->
+		{
+			if (t.length <= valStartInd || t[valStartInd].isEmpty()) return;
+
+			if (!t[symInd].isEmpty())
+			{
+				String[] syms = t[symInd].split(";");
+
+				double[] p = new double[6];
+
+				for (int i = 0; i < p.length; i++)
+				{
+					p[i] = Double.parseDouble(t[valStartInd + 6 + (2 * i)]);
+					if (t[valStartInd + i].startsWith("-")) p[i] = -p[i];
+				}
+
+				sb.append("\n").append(ArrayUtil.merge("-", syms)).append("\t").append(ArrayUtil.merge(" ", syms)).append("\t\tG\t");
+				for (double v : p)
+				{
+					sb.append("\t").append(v);
+				}
+			}
+		});
+	}
+	static void covertBlazevPhospho(String file, StringBuilder sb)
+	{
+		int idInd = 4;
+		int valStart = 8;
+		int siteInd = 5;
+
+		UniqueMaker um = new UniqueMaker();
+
+		FileUtil.linesTabbedSkip1(file).forEach(t ->
+		{
+			if (t.length < 5 || t[valStart].isEmpty() || t[siteInd].isEmpty()) return;
+
+			String[] ss = t[idInd].split(";");
+			String sym = ss[0];
+			String site = ss[1];
+			if (ss.length > 2) throw new RuntimeException("More than one site or symbol?: " + t[idInd]);
+
+			String id = sym + "-" + site;
+			id = um.get(id);
+
+			double[] p = new double[6];
+
+			for (int i = 0; i < p.length; i++)
+			{
+				p[i] = Double.parseDouble(t[valStart + 6 + (3 * i)]);
+				if (t[valStart + i].startsWith("-")) p[i] = -p[i];
+			}
+
+			sb.append("\n").append(id).append("\t").append(sym).append("\t").append(site).append("\tP\t");
+			for (double v : p)
+			{
+				sb.append("\t").append(v);
+			}
+		});
 	}
 
 	public static void predictActivity() throws IOException

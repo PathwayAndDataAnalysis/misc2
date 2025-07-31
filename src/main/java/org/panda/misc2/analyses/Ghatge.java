@@ -1,6 +1,5 @@
 package org.panda.misc2.analyses;
 
-import org.apache.ivy.plugins.resolver.util.FileURLLister;
 import org.panda.utility.FileUtil;
 
 import java.util.HashMap;

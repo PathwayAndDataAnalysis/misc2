@@ -447,29 +447,4 @@ public class CausalPathSubnetwork
 			if (child.isDirectory()) writeGOIRecursiveCompBased(child.getPath(), goiMap);
 		}
 	}
-
-	public static void writeSiteSpecAndStrongExpCompBased(String dir, String outWoExt) throws IOException
-	{
-		Map<String, Integer> rnaDir = FileUtil.linesTabbed(dir + "/results.txt").skip(1)
-			.filter(t -> t[7].endsWith("-rna")).collect(Collectors.toMap(
-				t -> t[2], t -> t[8].startsWith("-") ? -1 : 1, (i1, i2) -> i1));
-
-		Map<String, Integer> prtDir = FileUtil.linesTabbed(dir + "/results.txt").skip(1)
-			.filter(t -> t[7].equals(t[2])).collect(Collectors.toMap(
-				t -> t[2], t -> t[8].startsWith("-") ? -1 : 1, (i1, i2) -> i1));
-
-		Set<String> consistent = rnaDir.keySet().stream().filter(prtDir.keySet()::contains)
-			.filter(g -> rnaDir.get(g).equals(prtDir.get(g))).collect(Collectors.toSet());
-
-		Set<String> sigGenes = FileUtil.linesTabbed(dir + "/results.txt").skip(1)
-			.filter(t -> t[4].endsWith("active-by-network-sig")).map(t -> t[0]).collect(Collectors.toSet());
-
-		BufferedWriter writer1 = FileUtil.newBufferedWriter(dir + "/" + outWoExt + ".sif");
-		FileUtil.linesTabbed(dir + "/causative.sif").filter(t -> t.length > 2 && t[1].contains("expression")
-			&& (sigGenes.contains(t[0]) && consistent.contains(t[2])))
-			.forEach(t -> FileUtil.writeln(ArrayUtil.merge("\t", t), writer1));
-		writer1.close();
-
-		FileUtil.copyFile(dir + "/causative.format", dir + "/" + outWoExt + ".format");
-	}
 }

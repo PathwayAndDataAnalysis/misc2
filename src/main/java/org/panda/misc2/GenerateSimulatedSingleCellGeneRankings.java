@@ -1,6 +1,5 @@
 package org.panda.misc2;
 
-import algebra.lattice.Bool;
 import org.jetbrains.annotations.NotNull;
 import org.panda.utility.FileUtil;
 import org.panda.utility.Progress;
